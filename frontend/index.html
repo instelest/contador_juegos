@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contador</title>
+<style>
+body { 
+  font-family: Arial, sans-serif; 
+  background-color: #000; 
+  color: #fff; 
+  margin: 0; 
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Vista Single */
+#singleView {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  display: none;
+}
+
+#singleView.active {
+  display: block;
+}
+
+#logoContainer {
+  position: absolute;
+  z-index: 100;
+  pointer-events: none;
+}
+
+#logoContainer img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+#iconosContainer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.icono-dinamico {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+}
+
+#contadorContainer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 10;
+}
+
+#textoContador { 
+  font-size: 10vh;
+  text-align: center;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+#contador { 
+  font-size: 40vh; 
+  color: #ff3b3b; 
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+  text-align: center;
+}
+
+#contador:hover {
+  opacity: 0.7;
+}
+
+#finMensaje {
+  font-weight: bold;
+  text-align: center;
+  font-size: 8vh;
+  color: #ff0000;
+  margin-top: 10px;
+}
+
+/* Vista Multi */
+#multiView {
+  width: 100vw;
+  height: 100vh;
+  display: none;
+}
+
+#multiView.active {
+  display: block;
+}
+
+.grid-container {
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+  gap: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.grid-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.grid-2.horizontal { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.grid-2.vertical { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+.grid-3.horizontal { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr; }
+.grid-3.vertical { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr; }
+.grid-4.horizontal { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.grid-4.vertical { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; }
+.grid-5.horizontal { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.grid-5.vertical { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; }
+.grid-6.horizontal { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.grid-6.vertical { grid-template-columns: 1fr; grid-template-rows: repeat(6, 1fr); }
+
+.contador-box {
+  background-color: #111;
+  border: 2px solid #333;
+  border-radius: 10px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.contador-box.activo { border-color: #2a5; }
+
+.nombre-contador {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  padding: 5px 15px;
+  border-radius: 5px;
+  font-size: 1.5vh;
+  font-weight: bold;
+  z-index: 200;
+}
+
+.logo-multi {
+  position: absolute;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.logo-multi img {
+  width: 100%;
+  height: auto;
+}
+
+.iconos-box {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.texto-box {
+  font-size: 5vh;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.contador-display {
+  font-size: 20vh;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.contador-display:hover { opacity: 0.8; }
+
+.fin-mensaje-box {
+  font-size: 4vh;
+  font-weight: bold;
+  color: #ff0000;
+  margin-top: 10px;
+  text-align: center;
+}
+
+audio { display: none; }
+</style>
+</head>
+<body>
+
+<!-- Vista Single -->
+<div id="singleView">
+  <div id="logoContainer"></div>
+  <div id="iconosContainer"></div>
+  <div id="contadorContainer">
+    <div id="textoContador">Preparado para iniciar</div>
+    <div id="contador">00:00</div>
+    <div id="finMensaje"></div>
+  </div>
+  <audio id="audioPlayer"></audio>
+  <div id="tablaMesas"></div>
+</div>
+
+<!-- Vista Multi -->
+<div id="multiView">
+  <div id="gridContainer" class="grid-container"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

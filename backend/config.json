@@ -1,0 +1,8 @@
+{
+  "colorContador": "#ff0000",
+  "tamanoContador": "40vh",
+  "colorTexto": "#ffffff",
+  "tamanoTexto": "10vh",
+  "colorFondo": "#000000",
+  "tiempoPorDefecto": 0
+}

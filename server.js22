@@ -1,0 +1,994 @@
+// backend/server.js
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const { getAudioDurationInSeconds } = require('get-audio-duration');
+
+const app = express();
+const PORT = 3000;
+
+// Crear directorios necesarios
+const DIRS = {
+  audio: path.join(__dirname, 'audio'),
+  iconos: path.join(__dirname, 'iconos'),
+  logos: path.join(__dirname, 'logos'),
+  archivos: path.join(__dirname, 'archivos'),
+  archivosAudios: path.join(__dirname, 'archivos', 'audios'),
+  archivosIconos: path.join(__dirname, 'archivos', 'iconos'),
+  archivosLogos: path.join(__dirname, 'archivos', 'logos')
+};
+
+Object.values(DIRS).forEach(dir => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
+
+// Configurar multer para subir audio
+const audioStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, DIRS.audio);
+  },
+  filename: (req, file, cb) => {
+    cb(null, 'audio_' + Date.now() + path.extname(file.originalname));
+  }
+});
+
+// Configurar multer para subir iconos
+const iconStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, DIRS.iconos);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    cb(null, `icono_${timestamp}${path.extname(file.originalname)}`);
+  }
+});
+
+// Configurar multer para subir logos
+const logoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, DIRS.logos);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    cb(null, `logo_${timestamp}${path.extname(file.originalname)}`);
+  }
+});
+
+// Configurar multer para biblioteca de archivos
+const bibliotecaAudioStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, DIRS.archivosAudios),
+  filename: (req, file, cb) => cb(null, `audio_${Date.now()}${path.extname(file.originalname)}`)
+});
+
+const bibliotecaIconoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, DIRS.archivosIconos),
+  filename: (req, file, cb) => cb(null, `icono_${Date.now()}${path.extname(file.originalname)}`)
+});
+
+const bibliotecaLogoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, DIRS.archivosLogos),
+  filename: (req, file, cb) => cb(null, `logo_${Date.now()}${path.extname(file.originalname)}`)
+});
+
+const uploadAudio = multer({ storage: audioStorage });
+const uploadIcon = multer({ storage: iconStorage });
+const uploadLogo = multer({ storage: logoStorage });
+const uploadBibliotecaAudio = multer({ storage: bibliotecaAudioStorage });
+const uploadBibliotecaIcono = multer({ storage: bibliotecaIconoStorage });
+const uploadBibliotecaLogo = multer({ storage: bibliotecaLogoStorage });
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../frontend')));
+app.use('/admin', express.static(path.join(__dirname, 'public-admin')));
+app.use('/audio', express.static(path.join(__dirname, 'audio')));
+app.use('/iconos', express.static(path.join(__dirname, 'iconos')));
+app.use('/logos', express.static(path.join(__dirname, 'logos')));
+app.use('/archivos', express.static(path.join(__dirname, 'archivos')));
+
+const DATA_FILE = path.join(__dirname, 'data.json');
+const CONFIGS_DIR = path.join(__dirname, 'configuraciones');
+
+// Crear directorio de configuraciones si no existe
+if (!fs.existsSync(CONFIGS_DIR)) {
+  fs.mkdirSync(CONFIGS_DIR);
+}
+
+let estado = {};
+
+// Leer estado inicial desde disco si existe
+try {
+  if (fs.existsSync(DATA_FILE)) {
+    estado = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  } else {
+    estado = {
+      contadorActual: 'default',
+      contadoresVisibles: ['default'], // IDs de contadores a mostrar en pantalla
+      orientacionVista: 'horizontal', // 'horizontal' o 'vertical'
+      contadores: {
+        default: crearContadorVacio('default', 'Contador Principal')
+      }
+    };
+  }
+} catch(e) {
+  console.error("Error leyendo data.json:", e);
+  estado = {};
+}
+
+// Asegurar estructura correcta
+if (!estado.contadorActual) estado.contadorActual = 'default';
+if (!estado.contadores) estado.contadores = {};
+if (!estado.contadoresVisibles) estado.contadoresVisibles = ['default'];
+if (!estado.orientacionVista) estado.orientacionVista = 'horizontal';
+if (!estado.contadores.default) {
+  estado.contadores.default = crearContadorVacio('default', 'Contador Principal');
+}
+
+function crearContadorVacio(id, nombre) {
+  return {
+    id,
+    nombre,
+    contadorActivo: false,
+    tiempoRestante: 0,
+    tiempoInicial: 0,
+    texto: "Preparado para iniciar",
+    colorContador: "#ff3b3b",
+    tamanoContador: "40vh",
+    colorTexto: "#ffffff",
+    tamanoTexto: "10vh",
+    colorFondo: "#000000",
+    tiempoFinalizacion: null,
+    audio: { archivo: null, duracion: 0, modo: 'final', reproduciendo: false },
+    mesas: [],
+    iconos: [],
+    logo: {
+      archivo: null,
+      preset: 'superior-izquierda', // 'superior-izquierda', 'superior-derecha', 'inferior-izquierda', 'inferior-derecha', 'manual'
+      tamano: 15, // Porcentaje del ancho
+      posX: 10,   // Porcentaje (solo para modo manual)
+      posY: 10,   // Porcentaje (solo para modo manual)
+      visible: true
+    }
+  };
+}
+
+// FunciÃ³n para obtener el contador actual
+function getContador() {
+  return estado.contadores[estado.contadorActual] || estado.contadores.default;
+}
+
+// Guardado controlado en disco
+let guardando = false;
+let timeoutGuardar = null;
+function guardarEstado() {
+  if (guardando) return;
+  guardando = true;
+  fs.writeFile(DATA_FILE, JSON.stringify(estado, null, 2), (err) => {
+    if(err) console.error('Error guardando estado:', err);
+    guardando = false;
+  });
+}
+function marcarCambio() {
+  clearTimeout(timeoutGuardar);
+  timeoutGuardar = setTimeout(guardarEstado, 5000);
+}
+setInterval(() => { guardarEstado(); }, 60000);
+
+// ------------------------------------------------------
+// Rutas API - GestiÃ³n de contadores
+// ------------------------------------------------------
+
+// Listar todos los contadores
+app.get('/api/contadores', (req, res) => {
+  const lista = Object.values(estado.contadores).map(c => ({
+    id: c.id,
+    nombre: c.nombre,
+    activo: c.id === estado.contadorActual,
+    visible: estado.contadoresVisibles.includes(c.id)
+  }));
+  res.json({ 
+    contadores: lista, 
+    actual: estado.contadorActual,
+    visibles: estado.contadoresVisibles
+  });
+});
+
+// Crear nuevo contador
+app.post('/api/contadores', (req, res) => {
+  const { nombre } = req.body;
+  if (!nombre) return res.status(400).json({ success: false, message: 'Nombre requerido' });
+  
+  const id = `contador_${Date.now()}`;
+  estado.contadores[id] = crearContadorVacio(id, nombre);
+  
+  marcarCambio();
+  res.json({ success: true, id, nombre });
+});
+
+// Cambiar contador activo (para ediciÃ³n en admin)
+app.post('/api/contadores/cambiar', (req, res) => {
+  const { id } = req.body;
+  if (!estado.contadores[id]) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  estado.contadorActual = id;
+  marcarCambio();
+  res.json({ success: true, id });
+});
+
+// Renombrar contador
+app.put('/api/contadores/:id/nombre', (req, res) => {
+  const { id } = req.params;
+  const { nombre } = req.body;
+  
+  if (!nombre || !nombre.trim()) {
+    return res.status(400).json({ success: false, message: 'Nombre requerido' });
+  }
+  
+  if (!estado.contadores[id]) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  estado.contadores[id].nombre = nombre.trim();
+  marcarCambio();
+  res.json({ success: true, nombre: nombre.trim() });
+});
+
+// Cambiar contadores visibles en pantalla
+app.post('/api/contadores/visibles', (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) {
+    return res.status(400).json({ success: false, message: 'Se requiere array de IDs' });
+  }
+  
+  // Validar que todos los IDs existen
+  const idsValidos = ids.filter(id => estado.contadores[id]);
+  estado.contadoresVisibles = idsValidos.length > 0 ? idsValidos : ['default'];
+  
+  marcarCambio();
+  res.json({ success: true, visibles: estado.contadoresVisibles });
+});
+
+// Cambiar orientaciÃ³n de la vista
+app.post('/api/contadores/orientacion', (req, res) => {
+  const { orientacion } = req.body;
+  if (orientacion !== 'horizontal' && orientacion !== 'vertical') {
+    return res.status(400).json({ success: false, message: 'OrientaciÃ³n debe ser horizontal o vertical' });
+  }
+  
+  estado.orientacionVista = orientacion;
+  marcarCambio();
+  res.json({ success: true, orientacion });
+});
+
+// Obtener contadores visibles con toda su info
+app.get('/api/contadores/visibles', (req, res) => {
+  const contadoresVisibles = estado.contadoresVisibles
+    .map(id => estado.contadores[id])
+    .filter(c => c); // Filtrar nulls por si acaso
+  
+  res.json({ 
+    contadores: contadoresVisibles,
+    orientacion: estado.orientacionVista || 'horizontal'
+  });
+});
+
+// Eliminar contador
+app.delete('/api/contadores/:id', (req, res) => {
+  const { id } = req.params;
+  
+  if (id === 'default') {
+    return res.status(400).json({ success: false, message: 'No se puede eliminar el contador principal' });
+  }
+  
+  if (!estado.contadores[id]) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  // Si es el actual, cambiar al default
+  if (estado.contadorActual === id) {
+    estado.contadorActual = 'default';
+  }
+  
+  // Remover de visibles
+  estado.contadoresVisibles = estado.contadoresVisibles.filter(cid => cid !== id);
+  if (estado.contadoresVisibles.length === 0) {
+    estado.contadoresVisibles = ['default'];
+  }
+  
+  delete estado.contadores[id];
+  marcarCambio();
+  res.json({ success: true });
+});
+
+// ------------------------------------------------------
+// Guardar y cargar configuraciones
+// ------------------------------------------------------
+
+// Guardar configuraciÃ³n actual
+app.post('/api/configuraciones/guardar', (req, res) => {
+  const { nombre, contadorId } = req.body;
+  if (!nombre) return res.status(400).json({ success: false, message: 'Nombre requerido' });
+  
+  const id = contadorId || estado.contadorActual;
+  const contador = estado.contadores[id];
+  
+  if (!contador) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  const configId = `config_${Date.now()}`;
+  const config = {
+    id: configId,
+    nombre,
+    fechaGuardado: new Date().toISOString(),
+    contadorId: contador.id,
+    contadorNombre: contador.nombre,
+    configuracion: JSON.parse(JSON.stringify(contador)) // Deep copy
+  };
+  
+  const configPath = path.join(CONFIGS_DIR, `${configId}.json`);
+  
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    res.json({ success: true, config: { id: configId, nombre, fecha: config.fechaGuardado } });
+  } catch (error) {
+    console.error('Error guardando configuraciÃ³n:', error);
+    res.status(500).json({ success: false, message: 'Error guardando configuraciÃ³n' });
+  }
+});
+
+// Listar configuraciones guardadas
+app.get('/api/configuraciones', (req, res) => {
+  try {
+    const archivos = fs.readdirSync(CONFIGS_DIR).filter(f => f.endsWith('.json'));
+    const configs = archivos.map(archivo => {
+      const configPath = path.join(CONFIGS_DIR, archivo);
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      return {
+        id: config.id,
+        nombre: config.nombre,
+        fecha: config.fechaGuardado,
+        contadorNombre: config.contadorNombre
+      };
+    });
+    
+    // Ordenar por fecha descendente
+    configs.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    res.json({ configuraciones: configs });
+  } catch (error) {
+    console.error('Error listando configuraciones:', error);
+    res.json({ configuraciones: [] });
+  }
+});
+
+// Cargar configuraciÃ³n
+app.post('/api/configuraciones/cargar', (req, res) => {
+  const { configId, contadorDestinoId } = req.body;
+  
+  if (!configId) {
+    return res.status(400).json({ success: false, message: 'ID de configuraciÃ³n requerido' });
+  }
+  
+  const configPath = path.join(CONFIGS_DIR, `${configId}.json`);
+  
+  if (!fs.existsSync(configPath)) {
+    return res.status(404).json({ success: false, message: 'ConfiguraciÃ³n no encontrada' });
+  }
+  
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const contadorId = contadorDestinoId || estado.contadorActual;
+    
+    if (!estado.contadores[contadorId]) {
+      return res.status(404).json({ success: false, message: 'Contador destino no encontrado' });
+    }
+    
+    // Cargar configuraciÃ³n manteniendo el ID y nombre actuales
+    const idOriginal = estado.contadores[contadorId].id;
+    const nombreOriginal = estado.contadores[contadorId].nombre;
+    
+    estado.contadores[contadorId] = JSON.parse(JSON.stringify(config.configuracion));
+    estado.contadores[contadorId].id = idOriginal;
+    estado.contadores[contadorId].nombre = nombreOriginal;
+    
+    // Resetear estados temporales
+    estado.contadores[contadorId].contadorActivo = false;
+    estado.contadores[contadorId].tiempoRestante = config.configuracion.tiempoInicial;
+    estado.contadores[contadorId].tiempoFinalizacion = null;
+    if (estado.contadores[contadorId].audio) {
+      estado.contadores[contadorId].audio.reproduciendo = false;
+    }
+    
+    marcarCambio();
+    res.json({ success: true, message: 'ConfiguraciÃ³n cargada correctamente' });
+  } catch (error) {
+    console.error('Error cargando configuraciÃ³n:', error);
+    res.status(500).json({ success: false, message: 'Error cargando configuraciÃ³n' });
+  }
+});
+
+// Eliminar configuraciÃ³n guardada
+app.delete('/api/configuraciones/:id', (req, res) => {
+  const { id } = req.params;
+  const configPath = path.join(CONFIGS_DIR, `${id}.json`);
+  
+  if (!fs.existsSync(configPath)) {
+    return res.status(404).json({ success: false, message: 'ConfiguraciÃ³n no encontrada' });
+  }
+  
+  try {
+    fs.unlinkSync(configPath);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error eliminando configuraciÃ³n:', error);
+    res.status(500).json({ success: false, message: 'Error eliminando configuraciÃ³n' });
+  }
+});
+
+// ------------------------------------------------------
+// Rutas API existentes (actualizadas para usar getContador)
+// ------------------------------------------------------
+
+// GET estado del contador actual
+app.get('/api/status', (req, res) => {
+  const contador = getContador();
+  res.json(contador);
+});
+
+// POST cambiar texto
+app.post('/api/texto', (req, res) => {
+  const { texto } = req.body;
+  if (typeof texto === 'string') {
+    getContador().texto = texto;
+    marcarCambio();
+    res.json({ success: true });
+  } else res.status(400).json({ success: false });
+});
+
+// POST cambiar estilos
+app.post('/api/estilo', (req, res) => {
+  const contador = getContador();
+  const { colorContador, tamanoContador, colorTexto, tamanoTexto, colorFondo } = req.body;
+  if (colorContador) contador.colorContador = colorContador;
+  if (tamanoContador) contador.tamanoContador = tamanoContador;
+  if (colorTexto) contador.colorTexto = colorTexto;
+  if (tamanoTexto) contador.tamanoTexto = tamanoTexto;
+  if (colorFondo) contador.colorFondo = colorFondo;
+  marcarCambio();
+  res.json({ success: true });
+});
+
+// POST set tiempo
+app.post('/api/setTime', (req, res) => {
+  const { tiempo, iniciar } = req.body;
+  if (typeof tiempo === 'number' && tiempo >= 0) {
+    const contador = getContador();
+    contador.tiempoRestante = tiempo;
+    contador.tiempoInicial = tiempo;
+    contador.tiempoFinalizacion = null;
+    if (iniciar) contador.contadorActivo = true;
+    marcarCambio();
+    res.json({ success: true });
+  } else res.status(400).json({ success: false });
+});
+
+// POST start / stop / reset
+app.post('/api/start', (req, res) => {
+  const contador = getContador();
+  contador.contadorActivo = true;
+  contador.tiempoFinalizacion = null;
+  marcarCambio();
+  res.json({ success: true });
+});
+
+app.post('/api/stop', (req, res) => {
+  const contador = getContador();
+  contador.contadorActivo = false;
+  contador.tiempoFinalizacion = null;
+  contador.audio.reproduciendo = false;
+  marcarCambio();
+  res.json({ success: true });
+});
+
+app.post('/api/reset', (req, res) => {
+  const contador = getContador();
+  contador.tiempoRestante = contador.tiempoInicial;
+  contador.contadorActivo = false;
+  contador.tiempoFinalizacion = null;
+  contador.audio.reproduciendo = false;
+  marcarCambio();
+  res.json({ success: true });
+});
+
+// ------------------------------------------------------
+// Control individual de contadores (para multi-vista)
+// ------------------------------------------------------
+
+app.post('/api/contador/:id/start', (req, res) => {
+  const contador = estado.contadores[req.params.id];
+  if (!contador) return res.status(404).json({ success: false });
+  contador.contadorActivo = true;
+  contador.tiempoFinalizacion = null;
+  marcarCambio();
+  res.json({ success: true });
+});
+
+app.post('/api/contador/:id/stop', (req, res) => {
+  const contador = estado.contadores[req.params.id];
+  if (!contador) return res.status(404).json({ success: false });
+  contador.contadorActivo = false;
+  contador.tiempoFinalizacion = null;
+  contador.audio.reproduciendo = false;
+  marcarCambio();
+  res.json({ success: true });
+});
+
+app.post('/api/contador/:id/reset', (req, res) => {
+  const contador = estado.contadores[req.params.id];
+  if (!contador) return res.status(404).json({ success: false });
+  contador.tiempoRestante = contador.tiempoInicial;
+  contador.contadorActivo = false;
+  contador.tiempoFinalizacion = null;
+  contador.audio.reproduciendo = false;
+  marcarCambio();
+  res.json({ success: true });
+});
+
+// ------------------------------------------------------
+// GestiÃ³n de iconos
+// ------------------------------------------------------
+
+app.post('/api/iconos', uploadIcon.single('icono'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No se subiÃ³ archivo' });
+    }
+
+    const { nombre, tamano, posX, posY } = req.body;
+    const contador = getContador();
+    
+    const nuevoIcono = {
+      id: `icono_${Date.now()}`,
+      nombre: nombre || 'Icono',
+      archivo: req.file.filename,
+      tamano: parseInt(tamano) || 100,
+      posX: parseInt(posX) || 50,
+      posY: parseInt(posY) || 50,
+      visible: true
+    };
+
+    if (!contador.iconos) contador.iconos = [];
+    contador.iconos.push(nuevoIcono);
+    
+    marcarCambio();
+    res.json({ success: true, icono: nuevoIcono });
+  } catch (error) {
+    console.error('Error subiendo icono:', error);
+    res.status(500).json({ success: false, message: 'Error subiendo icono' });
+  }
+});
+
+app.put('/api/iconos/:id', (req, res) => {
+  const { id } = req.params;
+  const { nombre, tamano, posX, posY, visible } = req.body;
+  const contador = getContador();
+  
+  const icono = contador.iconos?.find(i => i.id === id);
+  if (!icono) {
+    return res.status(404).json({ success: false, message: 'Icono no encontrado' });
+  }
+
+  if (nombre !== undefined) icono.nombre = nombre;
+  if (tamano !== undefined) icono.tamano = parseInt(tamano);
+  if (posX !== undefined) icono.posX = parseInt(posX);
+  if (posY !== undefined) icono.posY = parseInt(posY);
+  if (visible !== undefined) icono.visible = visible;
+
+  marcarCambio();
+  res.json({ success: true, icono });
+});
+
+app.delete('/api/iconos/:id', (req, res) => {
+  const { id } = req.params;
+  const contador = getContador();
+  
+  const index = contador.iconos?.findIndex(i => i.id === id);
+  if (index === -1 || index === undefined) {
+    return res.status(404).json({ success: false, message: 'Icono no encontrado' });
+  }
+
+  const icono = contador.iconos[index];
+  const filePath = path.join(__dirname, 'iconos', icono.archivo);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  contador.iconos.splice(index, 1);
+  marcarCambio();
+  res.json({ success: true });
+});
+
+// ------------------------------------------------------
+// Audio
+// ------------------------------------------------------
+app.post('/api/upload-audio', uploadAudio.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No se subiÃ³ archivo' });
+    }
+
+    const modo = req.body.modo || 'final';
+    const filePath = req.file.path;
+    const duracion = await getAudioDurationInSeconds(filePath);
+    
+    const contador = getContador();
+    contador.audio = {
+      archivo: req.file.filename,
+      duracion: Math.ceil(duracion),
+      modo: modo,
+      reproduciendo: false
+    };
+    
+    marcarCambio();
+    res.json({ success: true, duracion: Math.ceil(duracion), modo: modo });
+  } catch (error) {
+    console.error('Error procesando audio:', error);
+    res.status(500).json({ success: false, message: 'Error procesando audio' });
+  }
+});
+
+app.delete('/api/audio', (req, res) => {
+  const contador = getContador();
+  if (contador.audio.archivo) {
+    const filePath = path.join(__dirname, 'audio', contador.audio.archivo);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+  contador.audio = { archivo: null, duracion: 0, modo: 'final', reproduciendo: false };
+  marcarCambio();
+  res.json({ success: true });
+});
+
+// ------------------------------------------------------
+// Mesas - GestiÃ³n independiente por contador
+// ------------------------------------------------------
+
+// Crear/actualizar mesas para un contador especÃ­fico
+app.post('/api/contador/:id/mesas', (req, res) => {
+  const { id } = req.params;
+  const { emparejamientos } = req.body;
+  
+  if (!estado.contadores[id]) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  if (!emparejamientos || !Array.isArray(emparejamientos)) {
+    return res.status(400).json({ success: false, message: 'Formato invÃ¡lido' });
+  }
+
+  estado.contadores[id].mesas = emparejamientos.map(e => ({
+    mesa: e.mesa,
+    jugador1: e.jugador1,
+    jugador2: e.jugador2,
+    activa: e.activa !== false
+  }));
+
+  marcarCambio();
+  res.json({ ok: true, mesas: estado.contadores[id].mesas });
+});
+
+// Obtener mesas de un contador especÃ­fico
+app.get('/api/contador/:id/mesas', (req, res) => {
+  const { id } = req.params;
+  const contador = estado.contadores[id];
+  
+  if (!contador) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  const mesasActivas = contador.mesas?.filter(m => m.activa) || [];
+  res.json({ mesas: mesasActivas });
+});
+
+// Limpiar mesas de un contador especÃ­fico
+app.delete('/api/contador/:id/mesas', (req, res) => {
+  const { id } = req.params;
+  
+  if (!estado.contadores[id]) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  estado.contadores[id].mesas = [];
+  marcarCambio();
+  res.json({ success: true });
+});
+
+// Mantener endpoints legacy para compatibilidad (usan contador actual)
+app.post('/api/create-table', (req, res) => {
+  const { emparejamientos } = req.body;
+  if (!emparejamientos || !Array.isArray(emparejamientos)) {
+    return res.status(400).json({ success: false, message: 'Formato invÃ¡lido' });
+  }
+
+  const contador = getContador();
+  contador.mesas = emparejamientos.map(e => ({
+    mesa: e.mesa,
+    jugador1: e.jugador1,
+    jugador2: e.jugador2,
+    activa: e.activa !== false
+  }));
+
+  marcarCambio();
+  res.json({ ok: true, mesas: contador.mesas });
+});
+
+app.get('/api/mesas', (req, res) => {
+  const contador = getContador();
+  const mesasActivas = contador.mesas?.filter(m => m.activa) || [];
+  res.json({ mesas: mesasActivas });
+});
+
+app.delete('/api/mesas', (req, res) => {
+  getContador().mesas = [];
+  marcarCambio();
+  res.json({ success: true });
+});
+
+// ------------------------------------------------------
+// Contador automÃ¡tico con audio
+// ------------------------------------------------------
+setInterval(() => {
+  Object.values(estado.contadores).forEach(contador => {
+    if (contador.contadorActivo && contador.tiempoRestante > 0) {
+      contador.tiempoRestante--;
+      
+      if (contador.audio.archivo && !contador.audio.reproduciendo) {
+        if (contador.audio.modo === 'automatico') {
+          if (contador.tiempoRestante === contador.audio.duracion) {
+            contador.audio.reproduciendo = true;
+          }
+        }
+      }
+      
+      if (contador.tiempoRestante === 0) {
+        contador.tiempoFinalizacion = Date.now();
+        if (contador.audio.archivo && contador.audio.modo === 'final') {
+          contador.audio.reproduciendo = true;
+        }
+      }
+    } else if (contador.contadorActivo && contador.tiempoRestante <= 0) {
+      contador.contadorActivo = false;
+    }
+  });
+}, 1000);
+
+// ------------------------------------------------------
+// Biblioteca de Archivos
+// ------------------------------------------------------
+
+// Listar archivos de audio en biblioteca
+app.get('/api/biblioteca/audios', (req, res) => {
+  try {
+    const archivos = fs.readdirSync(DIRS.archivosAudios)
+      .filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f))
+      .map(f => ({
+        nombre: f,
+        ruta: `/archivos/audios/${f}`,
+        tipo: 'audio'
+      }));
+    res.json({ archivos });
+  } catch (error) {
+    console.error('Error listando audios:', error);
+    res.json({ archivos: [] });
+  }
+});
+
+// Listar archivos de iconos en biblioteca
+app.get('/api/biblioteca/iconos', (req, res) => {
+  try {
+    const archivos = fs.readdirSync(DIRS.archivosIconos)
+      .filter(f => /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(f))
+      .map(f => ({
+        nombre: f,
+        ruta: `/archivos/iconos/${f}`,
+        tipo: 'icono'
+      }));
+    res.json({ archivos });
+  } catch (error) {
+    console.error('Error listando iconos:', error);
+    res.json({ archivos: [] });
+  }
+});
+
+// Listar archivos de logos en biblioteca
+app.get('/api/biblioteca/logos', (req, res) => {
+  try {
+    const archivos = fs.readdirSync(DIRS.archivosLogos)
+      .filter(f => /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(f))
+      .map(f => ({
+        nombre: f,
+        ruta: `/archivos/logos/${f}`,
+        tipo: 'logo'
+      }));
+    res.json({ archivos });
+  } catch (error) {
+    console.error('Error listando logos:', error);
+    res.json({ archivos: [] });
+  }
+});
+
+// Subir audio a biblioteca
+app.post('/api/biblioteca/audios', uploadBibliotecaAudio.single('archivo'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No se subió archivo' });
+    }
+    res.json({ 
+      success: true, 
+      archivo: {
+        nombre: req.file.filename,
+        ruta: `/archivos/audios/${req.file.filename}`,
+        tipo: 'audio'
+      }
+    });
+  } catch (error) {
+    console.error('Error subiendo audio:', error);
+    res.status(500).json({ success: false, message: 'Error subiendo audio' });
+  }
+});
+
+// Subir icono a biblioteca
+app.post('/api/biblioteca/iconos', uploadBibliotecaIcono.single('archivo'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No se subió archivo' });
+    }
+    res.json({ 
+      success: true, 
+      archivo: {
+        nombre: req.file.filename,
+        ruta: `/archivos/iconos/${req.file.filename}`,
+        tipo: 'icono'
+      }
+    });
+  } catch (error) {
+    console.error('Error subiendo icono:', error);
+    res.status(500).json({ success: false, message: 'Error subiendo icono' });
+  }
+});
+
+// Subir logo a biblioteca
+app.post('/api/biblioteca/logos', uploadBibliotecaLogo.single('archivo'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No se subió archivo' });
+    }
+    res.json({ 
+      success: true, 
+      archivo: {
+        nombre: req.file.filename,
+        ruta: `/archivos/logos/${req.file.filename}`,
+        tipo: 'logo'
+      }
+    });
+  } catch (error) {
+    console.error('Error subiendo logo:', error);
+    res.status(500).json({ success: false, message: 'Error subiendo logo' });
+  }
+});
+
+// Eliminar archivo de biblioteca
+app.delete('/api/biblioteca/:tipo/:nombre', (req, res) => {
+  const { tipo, nombre } = req.params;
+  let dirPath;
+  
+  switch(tipo) {
+    case 'audios':
+      dirPath = DIRS.archivosAudios;
+      break;
+    case 'iconos':
+      dirPath = DIRS.archivosIconos;
+      break;
+    case 'logos':
+      dirPath = DIRS.archivosLogos;
+      break;
+    default:
+      return res.status(400).json({ success: false, message: 'Tipo inválido' });
+  }
+  
+  const filePath = path.join(dirPath, nombre);
+  
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ success: false, message: 'Archivo no encontrado' });
+  }
+  
+  try {
+    fs.unlinkSync(filePath);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error eliminando archivo:', error);
+    res.status(500).json({ success: false, message: 'Error eliminando archivo' });
+  }
+});
+
+// ------------------------------------------------------
+// Gestión de Logo por Contador
+// ------------------------------------------------------
+
+// Actualizar configuración de logo
+app.put('/api/contadores/:id/logo', (req, res) => {
+  const { id } = req.params;
+  const { archivo, preset, tamano, posX, posY, visible } = req.body;
+  
+  if (!estado.contadores[id]) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  const contador = estado.contadores[id];
+  
+  if (!contador.logo) {
+    contador.logo = {
+      archivo: null,
+      preset: 'superior-izquierda',
+      tamano: 15,
+      posX: 10,
+      posY: 10,
+      visible: true
+    };
+  }
+  
+  if (archivo !== undefined) contador.logo.archivo = archivo;
+  if (preset !== undefined) contador.logo.preset = preset;
+  if (tamano !== undefined) contador.logo.tamano = parseInt(tamano);
+  if (posX !== undefined) contador.logo.posX = parseInt(posX);
+  if (posY !== undefined) contador.logo.posY = parseInt(posY);
+  if (visible !== undefined) contador.logo.visible = visible;
+  
+  marcarCambio();
+  res.json({ success: true, logo: contador.logo });
+});
+
+// Subir logo directo a contador
+app.post('/api/contadores/:id/logo/upload', uploadLogo.single('logo'), (req, res) => {
+  const { id } = req.params;
+  
+  if (!estado.contadores[id]) {
+    return res.status(404).json({ success: false, message: 'Contador no encontrado' });
+  }
+  
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No se subió archivo' });
+  }
+  
+  const contador = estado.contadores[id];
+  
+  if (!contador.logo) {
+    contador.logo = {
+      archivo: null,
+      preset: 'superior-izquierda',
+      tamano: 15,
+      posX: 10,
+      posY: 10,
+      visible: true
+    };
+  }
+  
+  contador.logo.archivo = req.file.filename;
+  
+  marcarCambio();
+  res.json({ success: true, logo: contador.logo });
+});
+
+// ------------------------------------------------------
+// Iniciar servidor
+// ------------------------------------------------------
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`Panel admin: http://localhost:${PORT}/admin`);
+  console.log(`Vista Ãºnica: http://localhost:${PORT}`);
+  console.log(`Vista mÃºltiple: http://localhost:${PORT}/multi.html`);
+});

@@ -1,0 +1,234 @@
+body { 
+  font-family: Arial, sans-serif; 
+  background-color: #000; 
+  color: #fff; 
+  text-align: center; 
+  margin: 0; 
+  padding: 0; 
+}
+
+.logo-dinamico { 
+  position: absolute; 
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-dinamico img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+#iconosContainer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.icono-dinamico {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  transition: all 0.3s ease;
+}
+
+#textoContador { 
+  font-size: 10vh; 
+  margin-top: 20px; 
+}
+
+#contador { 
+  font-size: 40vh; 
+  color: #ff3b3b; 
+  margin-top: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+#contador:hover {
+  opacity: 0.8;
+}
+
+#finMensaje {
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Estilos para la tabla de mesas */
+.tabla-container {
+  margin-top: 30px;
+  padding: 20px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tabla-mesas {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: rgba(20, 20, 20, 0.9);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tabla-mesas thead {
+  background-color: #ff3b3b;
+}
+
+.tabla-mesas th {
+  padding: 15px;
+  font-size: 2.5vh;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tabla-mesas tbody tr {
+  border-bottom: 1px solid #333;
+  transition: background-color 0.3s;
+}
+
+.tabla-mesas tbody tr:hover {
+  background-color: rgba(255, 59, 59, 0.1);
+}
+
+.tabla-mesas tbody tr:last-child {
+  border-bottom: none;
+}
+
+.tabla-mesas td {
+  padding: 12px 15px;
+  font-size: 2.2vh;
+}
+
+.mesa-num {
+  font-weight: bold;
+  font-size: 2.5vh;
+  color: #ff8800;
+  width: 100px;
+}
+
+.jugadores {
+  text-align: left;
+  font-size: 2vh;
+}
+
+.vs {
+  color: #ff3b3b;
+  font-weight: bold;
+  padding: 0 10px;
+}
+
+.bye {
+  color: #888;
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tabla-container {
+    padding: 10px;
+  }
+  
+  .tabla-mesas th,
+  .tabla-mesas td {
+    padding: 8px;
+    font-size: 1.8vh;
+  }
+  
+  .mesa-num {
+    font-size: 2vh;
+  }
+}
+#contadorContainer.pos-center:not(.pos-center-h) {
+  transform: translateY(-50%);
+}
+/* ============================================
+   MEJORAS EN TABLAS - Altura automática
+   ============================================ */
+.tabla-mesas {
+  table-layout: auto !important;  /* Altura automática según contenido */
+}
+
+.tabla-mesas th {
+  vertical-align: top;  /* Alinear arriba */
+}
+
+.tabla-mesas td {
+  vertical-align: top;  /* Alinear arriba */
+  white-space: normal;  /* Permitir saltos de línea */
+  word-wrap: break-word;
+  max-width: none;
+}
+
+.mesa-num {
+  vertical-align: top;  /* Alinear con título */
+  text-align: center;   /* Centrar número */
+  width: 80px;          /* Ancho fijo */
+  min-width: 60px;
+}
+
+.jugadores {
+  text-align: left;
+  padding-left: 10px;
+}
+/* ============================================
+   TABLAS - Alineación Correcta
+   ============================================ */
+.tabla-mesas {
+  table-layout: auto !important;
+  border-collapse: collapse;
+  background-color: rgba(20, 20, 20, 0.9);
+}
+
+.tabla-mesas th {
+  text-align: center;     /* Títulos CENTRADOS */
+  vertical-align: top;
+  padding: 12px 8px;
+  font-weight: bold;
+}
+
+.tabla-mesas td {
+  vertical-align: top;
+  padding: 8px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.mesa-num {
+  text-align: center;     /* Número de mesa CENTRADO */
+  vertical-align: top;
+  font-weight: bold;
+  color: #ff8800;
+  width: 80px;
+  min-width: 60px;
+}
+
+.tabla-mesas td:not(.mesa-num) {
+  text-align: left;       /* Jugadores a la IZQUIERDA */
+}
+
+.jugadores {
+  text-align: left;
+  padding-left: 10px;
+}
+
+/* Subir las tablas de mesas */
+#tablaMesas,
+.tabla-mesas-container {
+  bottom: 40px !important;  /* Cambiar de 20px a 40px */
+}
+
+@media (max-width: 768px) {
+  #tablaMesas,
+  .tabla-mesas-container {
+    bottom: 30px !important;
+  }
+}

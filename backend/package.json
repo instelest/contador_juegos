@@ -1,0 +1,14 @@
+{
+  "name": "contador-backend",
+  "version": "2.0.0",
+  "description": "Backend para contador con múltiples torneos, audio e iconos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "get-audio-duration": "^3.1.1"
+  }
+}

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel Admin Contador</title>
+<style>
+  body { font-family: Arial,sans-serif; background-color:#111; color:#fff; padding:20px; }
+  h1,h2,h3{text-align:center;}
+  .botones,.estilos{margin:20px 0; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;}
+  button{padding:10px 20px; font-size:16px; cursor:pointer; background:#333; color:#fff; border:none; border-radius:5px;}
+  button:hover{background:#555;}
+  button.primary{background:#2a5;}
+  button.primary:hover{background:#3c7;}
+  button.danger{background:#a52;}
+  button.danger:hover{background:#c74;}
+  input[type=text], input[type=number], input[type=color]{padding:5px; font-size:16px; margin:5px; width:80px; background:#222; color:#fff; border:1px solid #444;}
+  #estadoTiempo{margin-top:10px; font-size:1.2em; text-align:center; width:100%;}
+  .seccion{background:#222; padding:20px; margin:20px 0; border-radius:10px;}
+  .audio-controls{display:flex; flex-direction:column; gap:10px; align-items:center;}
+  .audio-status{padding:10px; background:#333; border-radius:5px; margin:10px 0;}
+  textarea{width:90%; min-height:200px; background:#222; color:#fff; border:1px solid #444; padding:10px; font-family:monospace;}
+  .mesa-item{background:#333; padding:10px; margin:5px 0; border-radius:5px; display:flex; justify-content:space-between; align-items:center;}
+  .mesa-item input{width:50px; background:#222; color:#fff; border:1px solid #444; padding:3px;}
+  .mesa-item input[type=text]{width:200px;}
+  .contador-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
+  .contador-item.activo{border:2px solid #2a5; background:#1a3;}
+  .config-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
+  .icono-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; gap:15px; align-items:center;}
+  .icono-preview{width:60px; height:60px; object-fit:contain; background:#222; border-radius:5px;}
+  .icono-controls{display:flex; flex-direction:column; gap:5px; flex:1;}
+  .icono-controls input{width:60px;}
+  .tabs{display:flex; gap:10px; margin-bottom:20px; justify-content:center; flex-wrap:wrap;}
+  .tab{padding:10px 20px; cursor:pointer; background:#333; border-radius:5px;}
+  .tab.active{background:#2a5;}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+  .biblioteca-categoria{margin:20px 0;}
+  .biblioteca-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:15px; margin-top:10px;}
+  .biblioteca-item{background:#333; padding:10px; border-radius:5px; text-align:center; position:relative;}
+  .biblioteca-item img{width:100%; height:100px; object-fit:contain; background:#222; border-radius:5px; margin-bottom:5px;}
+  .biblioteca-item audio{width:100%; margin-bottom:5px;}
+  .biblioteca-item .nombre{font-size:0.9em; word-break:break-word; margin-bottom:5px;}
+  .biblioteca-item .delete{position:absolute; top:5px; right:5px; background:#a52; color:#fff; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; font-size:0.8em;}
+  .biblioteca-item .delete:hover{background:#c74;}
+</style>
+</head>
+<body>
+<h1 id="tituloPanel">Panel de Control</h1>
+
+<!-- Gestión de contadores -->
+<div class="seccion">
+  <h2>🎮 Gestión de Contadores y Torneos</h2>
+  <p style="text-align:center; color:#aaa;">
+    Marca "📺 Mostrar en pantalla" para los contadores que quieres ver simultáneamente.<br>
+    Accede a la vista múltiple en: <a href="/multi.html" target="_blank" style="color:#2a5;">/multi.html</a>
+  </p>
+  
+  <div style="text-align:center; margin-bottom:15px; background:#1a1a1a; padding:15px; border-radius:8px;">
+    <label style="margin-right:20px; font-size:1.1em;">
+      <strong>Orientación Vista Múltiple:</strong>
+    </label>
+    <label style="margin-right:15px; cursor:pointer;">
+      <input type="radio" name="orientacion" value="horizontal" id="orientacionH" checked>
+      ↔️ Horizontal (lado a lado)
+    </label>
+    <label style="cursor:pointer;">
+      <input type="radio" name="orientacion" value="vertical" id="orientacionV">
+      ↕️ Vertical (uno sobre otro)
+    </label>
+  </div>
+  
+  <div style="text-align:center; margin-bottom:15px;">
+    <input type="text" id="nuevoContadorNombre" placeholder="Nombre del nuevo contador" style="width:300px;">
+    <button id="crearContadorBtn" class="primary">+ Crear Nuevo Contador</button>
+  </div>
+  <div id="listaContadores"></div>
+  
+  <hr style="border-color:#444; margin:30px 0;">
+  
+  <h3 style="text-align:center;">💾 Configuraciones Guardadas</h3>
+  <p style="text-align:center; color:#aaa; font-size:0.9em;">
+    Guarda configuraciones completas (tiempos, estilos, mesas, iconos, audio) para reutilizarlas en futuros torneos
+  </p>
+  <div id="listaConfiguraciones"></div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" data-tab="control">⏱️ Control de Tiempo</div>
+  <div class="tab" data-tab="estilos">🎨 Estilos</div>
+  <div class="tab" data-tab="posicion">📍 Posición Contador</div>
+  <div class="tab" data-tab="logo">🖼️ Logo</div>
+  <div class="tab" data-tab="iconos">🎞️ Iconos</div>
+  <div class="tab" data-tab="audio">🔊 Audio</div>
+  <div class="tab" data-tab="mesas">🎯 Mesas</div>
+  <div class="tab" data-tab="config-mesas">⚙️ Config Mesas</div>
+  <div class="tab" data-tab="biblioteca">📚 Biblioteca</div>
+</div>
+
+<!-- Tab: Control -->
+<div class="tab-content active" data-content="control">
+  <div class="seccion botones">
+    <h2>Tiempo predefinido</h2>
+    <button data-minutos="60" class="setTiempo">1 hora</button>
+    <button data-minutos="50" class="setTiempo">50 min</button>
+    <button data-minutos="30" class="setTiempo">30 min</button>
+    <button data-minutos="15" class="setTiempo">15 min</button>
+    <input type="number" id="customHoras" placeholder="H" min="0">
+    <input type="number" id="customMinutos" placeholder="M" min="0" max="59">
+    <input type="number" id="customSegundos" placeholder="S" min="0" max="59">
+    <button id="customBtn" class="primary">Personalizado</button>
+  </div>
+
+  <div class="seccion botones">
+    <h2>Control</h2>
+    <button id="startBtn" class="primary">▶️ Iniciar</button>
+    <button id="stopBtn" class="danger">⏸️ Detener</button>
+    <button id="resetBtn">🔄 Reiniciar</button>
+    <div id="estadoTiempo">Cargando estado...</div>
+  </div>
+</div>
+
+<!-- Tab: Estilos -->
+<div class="tab-content" data-content="estilos">
+  <div class="seccion botones estilos">
+    <h2>Texto y Colores</h2>
+    <input type="text" id="textoInput" placeholder="Texto del contador" style="width:300px;">
+    <button id="setTextBtn" class="primary">Actualizar texto</button><br>
+    <label>Color contador: <input type="color" id="colorContador" value="#ff0000"></label>
+    <label>Tamaño contador (vh): <input type="number" id="tamanoContador" min="1" max="100" value="40"></label><br>
+    <label>Color texto: <input type="color" id="colorTexto" value="#ffffff"></label>
+    <label>Tamaño texto (vh): <input type="number" id="tamanoTexto" min="1" max="50" value="10"></label><br>
+    <label>Color fondo: <input type="color" id="colorFondo" value="#000000"></label>
+    <button id="setStyleBtn" class="primary">Actualizar estilos</button>
+  </div>
+</div>
+
+<!-- Tab: Posición Contador -->
+<div class="tab-content" data-content="posicion">
+  <div class="seccion">
+    <h2>📍 Posición y Tamaño del Contador</h2>
+    <p style="text-align:center; color:#aaa;">Controla la posición y tamaño del contador en pantalla</p>
+    
+    <div style="max-width:800px; margin:0 auto;">
+      <!-- Posiciones predefinidas -->
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="text-align:center;">Posiciones Predefinidas</h3>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;">
+          <button onclick="setPosicionContador(25, 25)" style="padding:15px;">⬉ Superior Izq</button>
+          <button onclick="setPosicionContador(50, 25)" style="padding:15px;">⬆ Superior Centro</button>
+          <button onclick="setPosicionContador(75, 25)" style="padding:15px;">⬈ Superior Der</button>
+          
+          <button onclick="setPosicionContador(25, 50)" style="padding:15px;">⬅ Centro Izq</button>
+          <button onclick="setPosicionContador(50, 50)" class="primary" style="padding:15px;">⊙ Centro</button>
+          <button onclick="setPosicionContador(75, 50)" style="padding:15px;">➡ Centro Der</button>
+          
+          <button onclick="setPosicionContador(25, 75)" style="padding:15px;">⬋ Inferior Izq</button>
+          <button onclick="setPosicionContador(50, 75)" style="padding:15px;">⬇ Inferior Centro</button>
+          <button onclick="setPosicionContador(75, 75)" style="padding:15px;">⬊ Inferior Der</button>
+        </div>
+      </div>
+      
+      <!-- Ajuste fino con crucetas -->
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="text-align:center;">Ajuste Fino de Posición</h3>
+        
+        <div style="display:flex; gap:40px; justify-content:center; align-items:flex-start; margin-top:20px;">
+          <!-- Control Horizontal (X) -->
+          <div style="flex:1; text-align:center;">
+            <label style="display:block; margin-bottom:10px; font-weight:bold;">
+              Posición Horizontal (X): <span id="posXValue">50</span>%
+            </label>
+            <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+              <button onclick="ajustarPosX(-5)" style="width:50px; height:50px; font-size:20px;">⬅</button>
+              <button onclick="ajustarPosX(-1)" style="width:40px; height:40px;">◄</button>
+              <input type="range" id="posXSlider" min="0" max="100" value="50" 
+                     style="width:200px; margin:0 10px;"
+                     oninput="actualizarPosXSlider(this.value)">
+              <button onclick="ajustarPosX(1)" style="width:40px; height:40px;">►</button>
+              <button onclick="ajustarPosX(5)" style="width:50px; height:50px; font-size:20px;">➡</button>
+            </div>
+          </div>
+        </div>
+        
+        <div style="display:flex; gap:40px; justify-content:center; align-items:flex-start; margin-top:30px;">
+          <!-- Control Vertical (Y) -->
+          <div style="flex:1; text-align:center;">
+            <label style="display:block; margin-bottom:10px; font-weight:bold;">
+              Posición Vertical (Y): <span id="posYValue">50</span>%
+            </label>
+            <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+              <button onclick="ajustarPosY(-5)" style="width:50px; height:50px; font-size:20px;">⬆</button>
+              <button onclick="ajustarPosY(-1)" style="width:40px; height:40px;">▲</button>
+              <input type="range" id="posYSlider" min="0" max="100" value="50" 
+                     style="width:200px; margin:0 10px;"
+                     oninput="actualizarPosYSlider(this.value)">
+              <button onclick="ajustarPosY(1)" style="width:40px; height:40px;">▼</button>
+              <button onclick="ajustarPosY(5)" style="width:50px; height:50px; font-size:20px;">⬇</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Control de tamaño -->
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="text-align:center;">Tamaño del Contador</h3>
+        
+        <div style="text-align:center; margin-top:15px;">
+          <label style="display:block; margin-bottom:10px; font-weight:bold;">
+            Tamaño: <span id="tamanoContadorValue">40</span>vh
+          </label>
+          <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+            <button onclick="ajustarTamano(-5)" style="width:50px; height:50px; font-size:20px;">−−</button>
+            <button onclick="ajustarTamano(-1)" style="width:40px; height:40px;">−</button>
+            <input type="range" id="tamanoSlider" min="10" max="90" value="40" 
+                   style="width:300px; margin:0 10px;"
+                   oninput="actualizarTamanoSlider(this.value)">
+            <button onclick="ajustarTamano(1)" style="width:40px; height:40px;">+</button>
+            <button onclick="ajustarTamano(5)" style="width:50px; height:50px; font-size:20px;">++</button>
+          </div>
+          
+          <div style="margin-top:15px; display:flex; gap:10px; justify-content:center;">
+            <button onclick="setTamanoContador(20)">Pequeño (20vh)</button>
+            <button onclick="setTamanoContador(30)">Mediano (30vh)</button>
+            <button onclick="setTamanoContador(40)" class="primary">Normal (40vh)</button>
+            <button onclick="setTamanoContador(60)">Grande (60vh)</button>
+            <button onclick="setTamanoContador(80)">Muy Grande (80vh)</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Vista previa de valores -->
+      <div style="background:#0a0a0a; padding:15px; border-radius:8px; text-align:center;">
+        <strong>Valores Actuales:</strong><br>
+        X: <span id="previewX">50</span>% | 
+        Y: <span id="previewY">50</span>% | 
+        Tamaño: <span id="previewTamano">40</span>vh
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Logo -->
+<div class="tab-content" data-content="logo">
+  <div class="seccion">
+    <h2>🖼️ Configuración del Logo</h2>
+    <p style="text-align:center; color:#aaa;">
+      Personaliza el tamaño y posición del logo en pantalla
+    </p>
+    
+    <div style="max-width:900px; margin:0 auto;">
+      
+      <!-- Subir o seleccionar logo -->
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="text-align:center;">📁 Logo Actual</h3>
+        
+        <div id="logoActualPreview" style="text-align:center; margin:20px 0; min-height:100px; background:#0a0a0a; padding:20px; border-radius:5px;">
+          <p style="color:#888;">No hay logo configurado</p>
+        </div>
+        
+        <div style="text-align:center; margin-top:15px;">
+          <input type="file" id="logoFileInput" accept="image/*" style="margin-bottom:10px;">
+          <input type="text" id="logoNombreInput" placeholder="Nombre del logo" style="width:250px; margin-bottom:10px;"><br>
+          <button id="subirLogoBtn" class="primary">📤 Subir Nuevo Logo</button>
+          <button id="eliminarLogoBtn" class="danger">🗑️ Eliminar Logo</button>
+        </div>
+        
+        <hr style="border-color:#444; margin:20px 0;">
+        
+        <h3 style="text-align:center;">📚 O Usar de Biblioteca</h3>
+        <div style="text-align:center;">
+          <select id="logoBibliotecaSelect" style="width:300px; padding:8px; background:#222; color:#fff; border:1px solid #444; margin-right:10px;">
+            <option value="">-- Seleccionar de biblioteca --</option>
+          </select>
+          <button id="usarLogoBibliotecaBtn" class="primary">➕ Usar Este Logo</button>
+        </div>
+      </div>
+      
+      <!-- Tamaño del logo -->
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="text-align:center;">📏 Tamaño del Logo</h3>
+        
+        <div style="text-align:center; margin-top:15px;">
+          <label style="display:block; margin-bottom:10px; font-weight:bold;">
+            Tamaño: <span id="logoTamanoValue">340</span> píxeles
+          </label>
+          <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+            <button onclick="ajustarLogoTamano(-50)" style="width:50px; height:50px; font-size:20px;">−−</button>
+            <button onclick="ajustarLogoTamano(-10)" style="width:40px; height:40px;">−</button>
+            <input type="range" id="logoTamanoSlider" min="50" max="800" value="340" 
+                   style="width:300px; margin:0 10px;"
+                   oninput="actualizarLogoTamanoSlider(this.value)">
+            <button onclick="ajustarLogoTamano(10)" style="width:40px; height:40px;">+</button>
+            <button onclick="ajustarLogoTamano(50)" style="width:50px; height:50px; font-size:20px;">++</button>
+          </div>
+          
+          <div style="margin-top:15px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button onclick="setLogoTamano(150)">Pequeño (150px)</button>
+            <button onclick="setLogoTamano(250)">Mediano (250px)</button>
+            <button onclick="setLogoTamano(340)" class="primary">Normal (340px)</button>
+            <button onclick="setLogoTamano(450)">Grande (450px)</button>
+            <button onclick="setLogoTamano(600)">Muy Grande (600px)</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Posición del logo -->
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="text-align:center;">📍 Posición del Logo</h3>
+        
+        <p style="text-align:center; color:#888; margin-bottom:15px;">
+          Valores en porcentaje (%) de la pantalla
+        </p>
+        
+        <!-- Posiciones predefinidas -->
+        <h4 style="text-align:center; margin-top:20px;">Posiciones Rápidas:</h4>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px; max-width:600px; margin-left:auto; margin-right:auto;">
+          <button onclick="setPosicionLogo(5, 5)" style="padding:10px; font-size:0.9em;">⬉ Superior Izq</button>
+          <button onclick="setPosicionLogo(50, 5)" style="padding:10px; font-size:0.9em;">⬆ Superior Centro</button>
+          <button onclick="setPosicionLogo(95, 5)" style="padding:10px; font-size:0.9em;">⬈ Superior Der</button>
+          
+          <button onclick="setPosicionLogo(5, 50)" style="padding:10px; font-size:0.9em;">⬅ Centro Izq</button>
+          <button onclick="setPosicionLogo(50, 50)" style="padding:10px; font-size:0.9em;">⊙ Centro</button>
+          <button onclick="setPosicionLogo(95, 50)" style="padding:10px; font-size:0.9em;">➡ Centro Der</button>
+          
+          <button onclick="setPosicionLogo(5, 95)" style="padding:10px; font-size:0.9em;">⬋ Inferior Izq</button>
+          <button onclick="setPosicionLogo(50, 95)" style="padding:10px; font-size:0.9em;">⬇ Inferior Centro</button>
+          <button onclick="setPosicionLogo(95, 95)" style="padding:10px; font-size:0.9em;">⬊ Inferior Der</button>
+        </div>
+        
+        <!-- Ajuste fino -->
+        <h4 style="text-align:center; margin-top:30px;">Ajuste Fino:</h4>
+        
+        <div style="display:flex; gap:40px; justify-content:center; margin-top:20px;">
+          <!-- Control X -->
+          <div style="flex:1; max-width:400px;">
+            <label style="display:block; text-align:center; margin-bottom:10px; font-weight:bold;">
+              Horizontal (X): <span id="logoPosXValue">10</span>%
+            </label>
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+              <button onclick="ajustarLogoPosX(-5)" style="width:45px; height:45px; font-size:18px;">⬅</button>
+              <button onclick="ajustarLogoPosX(-1)" style="width:35px; height:35px;">◄</button>
+              <input type="range" id="logoPosXSlider" min="0" max="100" value="10" 
+                     style="width:180px;"
+                     oninput="actualizarLogoPosXSlider(this.value)">
+              <button onclick="ajustarLogoPosX(1)" style="width:35px; height:35px;">►</button>
+              <button onclick="ajustarLogoPosX(5)" style="width:45px; height:45px; font-size:18px;">➡</button>
+            </div>
+          </div>
+          
+          <!-- Control Y -->
+          <div style="flex:1; max-width:400px;">
+            <label style="display:block; text-align:center; margin-bottom:10px; font-weight:bold;">
+              Vertical (Y): <span id="logoPosYValue">10</span>%
+            </label>
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+              <button onclick="ajustarLogoPosY(-5)" style="width:45px; height:45px; font-size:18px;">⬆</button>
+              <button onclick="ajustarLogoPosY(-1)" style="width:35px; height:35px;">▲</button>
+              <input type="range" id="logoPosYSlider" min="0" max="100" value="10" 
+                     style="width:180px;"
+                     oninput="actualizarLogoPosYSlider(this.value)">
+              <button onclick="ajustarLogoPosY(1)" style="width:35px; height:35px;">▼</button>
+              <button onclick="ajustarLogoPosY(5)" style="width:45px; height:45px; font-size:18px;">⬇</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Vista previa -->
+      <div style="background:#0a0a0a; padding:15px; border-radius:8px; text-align:center;">
+        <strong>⚙️ Configuración Actual del Logo:</strong><br>
+        Tamaño: <span id="previewLogoTamano">340</span>px | 
+        X: <span id="previewLogoPosX">10</span>% | 
+        Y: <span id="previewLogoPosY">10</span>%
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Iconos -->
+<div class="tab-content" data-content="iconos">
+  <div class="seccion">
+    <h2>🖼️ Gestión de Iconos</h2>
+    <p style="text-align:center; color:#aaa;">Los iconos se mostrarán en el frontend. El logo principal siempre está visible.</p>
+    
+    <div style="text-align:center; margin:20px 0;">
+      <h3>Añadir nuevo icono</h3>
+      
+      <div style="margin-bottom:15px;">
+        <label style="margin-right:10px;">
+          <input type="radio" name="iconoOrigen" value="subir" checked> Subir archivo nuevo
+        </label>
+        <label>
+          <input type="radio" name="iconoOrigen" value="biblioteca"> Seleccionar de biblioteca
+        </label>
+      </div>
+      
+      <div id="iconoSubirDiv">
+        <input type="file" id="iconoFile" accept="image/*"><br>
+      </div>
+      
+      <div id="iconoBibliotecaDiv" style="display:none;">
+        <select id="iconoBibliotecaSelect" style="width:300px; padding:8px; background:#222; color:#fff; border:1px solid #444;">
+          <option value="">-- Seleccionar de biblioteca --</option>
+        </select><br>
+      </div>
+      
+      <input type="text" id="iconoNombre" placeholder="Nombre del icono" style="width:200px;"><br>
+      <label>Tamaño (px): <input type="number" id="iconoTamano" value="100" min="20" max="500"></label><br>
+      <label>Posición X (%): <input type="number" id="iconoPosX" value="50" min="0" max="100"></label>
+      <label>Posición Y (%): <input type="number" id="iconoPosY" value="50" min="0" max="100"></label><br>
+      <button id="subirIconoBtn" class="primary">📤 Añadir Icono</button>
+    </div>
+
+    <hr style="border-color:#444; margin:30px 0;">
+
+    <div id="listaIconos"></div>
+  </div>
+</div>
+
+<!-- Tab: Audio -->
+<div class="tab-content" data-content="audio">
+  <div class="seccion audio-controls">
+    <h2>🔊 Control de Audio</h2>
+    
+    <!-- Estado Actual del Audio -->
+    <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+      <h3 style="margin-top:0;">📻 Audio Actual</h3>
+      <div id="audioStatusDetallado" style="background:#222; padding:15px; border-radius:5px; border-left:4px solid #888;">
+        <p style="margin:5px 0;"><strong>Archivo:</strong> <span id="audioArchivoActual">Ninguno</span></p>
+        <p style="margin:5px 0;"><strong>Duración:</strong> <span id="audioDuracionActual">-</span></p>
+        <p style="margin:5px 0;"><strong>Modo:</strong> <span id="audioModoActual">-</span></p>
+        <p style="margin:5px 0;" id="audioSegundosInfo" style="display:none;"><strong>Se reproducirá:</strong> <span id="audioSegundosActual">-</span></p>
+      </div>
+    </div>
+    
+    <!-- Subir/Seleccionar Audio -->
+    <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+      <h3 style="margin-top:0;">📤 Cargar Audio</h3>
+      
+      <div style="margin-bottom:15px;">
+        <label style="margin-right:20px; cursor:pointer;">
+          <input type="radio" name="audioOrigen" value="subir" checked> 
+          <strong>📁 Subir archivo nuevo</strong>
+        </label>
+        <label style="cursor:pointer;">
+          <input type="radio" name="audioOrigen" value="biblioteca"> 
+          <strong>📚 Seleccionar de biblioteca</strong>
+        </label>
+      </div>
+      
+      <div id="audioSubirDiv">
+        <label for="audioFile"><strong>Seleccionar archivo:</strong></label><br>
+        <input type="file" id="audioFile" accept="audio/*" style="margin-top:5px;">
+      </div>
+      
+      <div id="audioBibliotecaDiv" style="display:none;">
+        <label for="audioBibliotecaSelect"><strong>Seleccionar de biblioteca:</strong></label><br>
+        <select id="audioBibliotecaSelect" style="width:100%; max-width:400px; padding:10px; margin-top:5px; background:#222; color:#fff; border:1px solid #444; border-radius:5px;">
+          <option value="">-- Seleccionar audio --</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- Configuración de Reproducción -->
+    <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+      <h3 style="margin-top:0;">⚙️ Cuándo Reproducir</h3>
+      
+      <div style="margin-bottom:15px;">
+        <label style="display:block; margin-bottom:10px; padding:10px; background:#222; border-radius:5px; cursor:pointer;">
+          <input type="radio" name="audioModo" value="final" checked>
+          <strong>🏁 Al final del contador (00:00)</strong>
+          <small style="display:block; color:#888; margin-left:25px;">El audio comienza cuando el contador llega a cero</small>
+        </label>
+        
+        <label style="display:block; padding:10px; background:#222; border-radius:5px; cursor:pointer;">
+          <input type="radio" name="audioModo" value="antes_final">
+          <strong>⏰ Antes del final</strong>
+          <small style="display:block; color:#888; margin-left:25px;">El audio comienza X segundos antes de que termine el contador</small>
+        </label>
+      </div>
+      
+      <div id="audioSegundosConfig" style="margin-left:25px; margin-top:10px; display:none;">
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Reproducir cuando falten (segundos):</strong>
+          <input type="number" id="audioSegundosAntes" min="5" max="300" value="30" style="width:100px; margin-left:10px; padding:5px; background:#222; color:#fff; border:1px solid #444; border-radius:3px;">
+          <small style="color:#888; margin-left:10px;">5-300 segundos</small>
+        </label>
+        
+        <div style="margin-top:10px; display:flex; gap:5px; flex-wrap:wrap;">
+          <button onclick="setAudioSegundos(10)" class="tiempo-btn" style="padding:6px 12px; font-size:0.9em;">10s</button>
+          <button onclick="setAudioSegundos(30)" class="tiempo-btn primary active" style="padding:6px 12px; font-size:0.9em;">30s ⭐</button>
+          <button onclick="setAudioSegundos(60)" class="tiempo-btn" style="padding:6px 12px; font-size:0.9em;">1 min</button>
+          <button onclick="setAudioSegundos(120)" class="tiempo-btn" style="padding:6px 12px; font-size:0.9em;">2 min</button>
+          <button onclick="setAudioSegundos(180)" class="tiempo-btn" style="padding:6px 12px; font-size:0.9em;">3 min</button>
+          <button onclick="setAudioSegundos(300)" class="tiempo-btn" style="padding:6px 12px; font-size:0.9em;">5 min</button>
+        </div>
+        
+        <p style="text-align:center; color:#888; font-size:0.9em; margin-top:8px;">
+          💡 Ejemplo: Si el contador está en 1:00 y configuras 30s, el audio empezará en 00:30
+        </p>
+      </div>
+    </div>
+    
+    <!-- Botones de Acción -->
+    <div style="text-align:center;">
+      <button id="uploadAudioBtn" class="primary" style="padding:12px 30px; font-size:1.1em; margin-right:10px;">
+        📤 Aplicar Audio
+      </button>
+      <button id="deleteAudioBtn" class="danger" style="padding:12px 30px; font-size:1.1em;">
+        🗑️ Eliminar Audio
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Mesas -->
+<div class="tab-content" data-content="mesas">
+  <div class="seccion">
+    <h2>Configurar Mesas de Juego</h2>
+    <p style="text-align:center;">✨ <strong>Pega directamente el texto del sistema de torneos</strong> ✨</p>
+    <p style="text-align:center; color:#aaa; font-size:0.9em;">
+      El sistema detecta automáticamente las mesas, jugadores y BYEs.<br>
+      También acepta formato manual: <code>0|Jugador1|BYE</code> o <code>1|Jugador1|Jugador2</code>
+    </p>
+    <textarea id="mesasInput" placeholder="Pega aquí el texto completo del torneo..."></textarea>
+    <div style="text-align:center; margin-top:10px;">
+      <button id="parseMesasBtn" class="primary">🎮 Cargar Mesas</button>
+      <button id="clearMesasBtn" class="danger">🗑️ Limpiar Todas las Mesas</button>
+    </div>
+    <div id="mesasPreview" style="margin-top:20px;"></div>
+  </div>
+</div>
+
+<!-- Tab: Configuración Visual de Mesas -->
+<div class="tab-content" data-content="config-mesas">
+  <div class="seccion">
+    <h2>⚙️ Configuración Visual de Mesas</h2>
+    <p style="text-align:center; color:#aaa;">Personaliza cómo se ven las tablas de mesas en pantalla</p>
+    
+    <div style="max-width:800px; margin:0 auto;">
+      <h3 style="text-align:center;">Disposición de la Tabla</h3>
+      
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Número de Columnas:</strong>
+          <input type="number" id="mesasColumnas" min="1" max="6" value="2" style="width:80px;">
+          <small style="color:#888; margin-left:10px;">Organiza las mesas en columnas (1-6)</small>
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Altura Máxima de Tabla (vh):</strong>
+          <input type="number" id="mesasAltura" min="10" max="100" value="30" style="width:80px;">
+          <small style="color:#888; margin-left:10px;">Altura máxima del contenedor de mesas</small>
+        </label>
+      </div>
+      
+      <h3 style="text-align:center;">Colores y Tamaños</h3>
+      
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Color de Cabecera:</strong>
+          <input type="color" id="mesasColorCabecera" value="#ff3b3b">
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Color de Fondo Tabla:</strong>
+          <input type="color" id="mesasColorFondo" value="#141414">
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Color Número de Mesa:</strong>
+          <input type="color" id="mesasColorNumero" value="#ff8800">
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Color "VS":</strong>
+          <input type="color" id="mesasColorVS" value="#ff3b3b">
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Tamaño Fuente Cabecera (vh):</strong>
+          <input type="number" id="mesasTamCabecera" min="1" max="10" value="2.5" step="0.1" style="width:80px;">
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Tamaño Fuente Filas (vh):</strong>
+          <input type="number" id="mesasTamFilas" min="1" max="10" value="2.2" step="0.1" style="width:80px;">
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Tamaño Fuente Número Mesa (vh):</strong>
+          <input type="number" id="mesasTamNumero" min="1" max="10" value="2.5" step="0.1" style="width:80px;">
+        </label>
+      </div>
+      
+      <h3 style="text-align:center;">✏️ Títulos Personalizados</h3>
+      
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <p style="color:#aaa; text-align:center; margin-bottom:15px;">
+          Personaliza los nombres de las columnas de la tabla
+        </p>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Título Columna 1:</strong>
+          <input type="text" id="mesasTituloMesa" value="Mesa" placeholder="Mesa" 
+                 style="width:200px; padding:8px; margin-left:10px; background:#222; color:#fff; border:1px solid #444;">
+          <small style="color:#888; margin-left:10px;">Ej: "Mesa", "Table", "Board"</small>
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Título Columna 2:</strong>
+          <input type="text" id="mesasTituloEmparejamiento" value="Emparejamiento" placeholder="Emparejamiento" 
+                 style="width:200px; padding:8px; margin-left:10px; background:#222; color:#fff; border:1px solid #444;">
+          <small style="color:#888; margin-left:10px;">Ej: "Emparejamiento", "Pairing", "Match"</small>
+        </label>
+      </div>
+      
+      <h3 style="text-align:center;">Posición en Pantalla</h3>
+      
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Posición:</strong>
+          <select id="mesasPosicion" style="width:200px; padding:8px; background:#222; color:#fff; border:1px solid #444;">
+            <option value="bottom-center">⬇️ Abajo Centrado (por defecto)</option>
+            <option value="top-center">⬆️ Arriba Centrado</option>
+            <option value="left-center">⬅️ Izquierda Centrado</option>
+            <option value="right-center">➡️ Derecha Centrado</option>
+          </select>
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Distancia del Borde (px):</strong>
+          <input type="number" id="mesasMargen" min="0" max="100" value="20" style="width:80px;">
+        </label>
+        
+        <label style="display:block; margin-bottom:10px;">
+          <strong>Ancho de Tabla (%):</strong>
+          <input type="number" id="mesasAncho" min="10" max="100" value="90" style="width:80px;">
+        </label>
+      </div>
+      
+      <h3 style="text-align:center;">⏱️ Tiempo de Visualización</h3>
+      
+      <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <p style="color:#aaa; text-align:center; margin-bottom:15px;">
+          Configura cuánto tiempo se muestran las mesas en pantalla
+        </p>
+        
+        <label style="display:block; margin-bottom:15px;">
+          <input type="radio" name="tiempoMesas" value="indefinido" id="tiempoMesasIndefinido" checked>
+          <strong>∞ Mostrar Indefinidamente</strong>
+          <small style="display:block; color:#888; margin-left:25px;">Las mesas siempre estarán visibles</small>
+        </label>
+        
+        <label style="display:block; margin-bottom:15px;">
+          <input type="radio" name="tiempoMesas" value="temporal">
+          <strong>⏰ Mostrar por Tiempo Limitado</strong>
+          <small style="display:block; color:#888; margin-left:25px;">Las mesas desaparecen después de un tiempo</small>
+        </label>
+        
+        <div id="tiempoMesasConfig" style="margin-left:25px; margin-top:10px; display:none;">
+          <label style="display:block; margin-bottom:10px;">
+            <strong>Duración (segundos):</strong>
+            <input type="number" id="tiempoMesasDuracion" min="5" max="3600" value="30" style="width:100px; margin-left:10px;">
+            <small style="color:#888; margin-left:10px;">5 segundos - 60 minutos (3600s)</small>
+          </label>
+          
+          <div style="margin-top:10px; display:flex; gap:5px; flex-wrap:wrap;">
+            <button onclick="setTiempoMesas(10)" class="tiempo-btn" style="padding:8px 15px;">10 seg</button>
+            <button onclick="setTiempoMesas(30)" class="tiempo-btn primary active" style="padding:8px 15px;">30 seg ⭐</button>
+            <button onclick="setTiempoMesas(60)" class="tiempo-btn" style="padding:8px 15px;">1 min</button>
+            <button onclick="setTiempoMesas(300)" class="tiempo-btn" style="padding:8px 15px;">5 min</button>
+            <button onclick="setTiempoMesas(600)" class="tiempo-btn" style="padding:8px 15px;">10 min</button>
+            <button onclick="setTiempoMesas(900)" class="tiempo-btn" style="padding:8px 15px;">15 min</button>
+          </div>
+          <p style="text-align:center; color:#888; font-size:0.9em; margin-top:8px;">
+            ⭐ Por defecto: 30 segundos
+          </p>margin-top:10px; display:flex; gap:5px; flex-wrap:wrap;">
+            <button onclick="setTiempoMesas(300)" class="tiempo-btn" style="padding:8px 15px;">5 min</button>
+            <button onclick="setTiempoMesas(600)" class="tiempo-btn primary active" style="padding:8px 15px;">10 min ⭐</button>
+            <button onclick="setTiempoMesas(900)" class="tiempo-btn" style="padding:8px 15px;">15 min</button>
+          </div>
+          <p style="text-align:center; color:#888; font-size:0.9em; margin-top:8px;">
+            ⭐ Por defecto: 10 minutos
+          </p>
+        </div>
+      </div>
+      
+      <div style="text-align:center; margin-top:20px;">
+        <button id="aplicarConfigMesas" class="primary">✅ Aplicar Configuración</button>
+        <button id="resetConfigMesas">🔄 Restaurar Valores por Defecto</button>
+      </div>
+      
+      <div id="previewConfigMesas" style="margin-top:30px; padding:20px; background:#0a0a0a; border-radius:8px; display:none;">
+        <h4 style="text-align:center;">Vista Previa</h4>
+        <p style="text-align:center; color:#888; font-size:0.9em;">Los cambios se aplicarán en tiempo real en las pantallas</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Biblioteca -->
+<div class="tab-content" data-content="biblioteca">
+  <div class="seccion">
+    <h2>📚 Biblioteca de Archivos</h2>
+    <p style="text-align:center; color:#aaa;">Todos los archivos subidos organizados por tipo</p>
+    
+    <div class="biblioteca-categoria">
+      <h3>🖼️ Iconos</h3>
+      <div id="bibliotecaIconos" class="biblioteca-grid"></div>
+    </div>
+    
+    <div class="biblioteca-categoria">
+      <h3>🎨 Logos</h3>
+      <div id="bibliotecaLogos" class="biblioteca-grid"></div>
+    </div>
+    
+    <div class="biblioteca-categoria">
+      <h3>🔊 Audios</h3>
+      <div id="bibliotecaAudios" class="biblioteca-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de datos
+backend/data.json
+backend/configuraciones/*.json
+
+# Archivos subidos por usuarios
+backend/audio/*
+!backend/audio/.gitkeep
+backend/iconos/*
+!backend/iconos/.gitkeep
+backend/logos/*
+!backend/logos/.gitkeep
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*.swo
+*~
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Environment variables
+.env
+.env.local
+
+# Temporales
+tmp/
+temp/
+*.tmp
+
+# Backups
+backup_*/
