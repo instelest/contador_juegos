@@ -103,8 +103,20 @@ function actualizarIconos(iconos) {
 
 async function actualizar(){
   try{
-    const res = await fetch(`${API}/status`);
-    const data = await res.json();
+    // Obtener contadores visibles
+    const resVisibles = await fetch(`${API}/contadores/visibles`);
+    const dataVisibles = await resVisibles.json();
+
+    // Si hay múltiples visibles → redirigir a multi
+    if (dataVisibles.contadores && dataVisibles.contadores.length > 1) {
+      window.location.href = '/multi.html';
+      return;
+    }
+
+    // Usar el primer contador visible (no el que se está editando)
+    const data = (dataVisibles.contadores && dataVisibles.contadores.length === 1)
+      ? dataVisibles.contadores[0]
+      : (await (await fetch(`${API}/status`)).json());
 
     // Texto: ocultar "Preparado para iniciar" si el contador está activo o terminó
     let textoMostrar = data.texto;

@@ -265,12 +265,15 @@ async function cargarContadores() {
     const lista = document.getElementById('listaContadores');
     lista.innerHTML = '';
     
+    const totalContadores = data.contadores.length;
+
     data.contadores.forEach(c => {
       const div = document.createElement('div');
       div.className = `contador-item ${c.activo ? 'activo' : ''}`;
-      
+
       const visibleCheck = c.visible ? 'checked' : '';
-      
+      const puedeEliminar = totalContadores > 1;
+
       div.innerHTML = `
         <div>
           <strong id="nombre-${c.id}">${c.nombre}</strong>
@@ -286,7 +289,7 @@ async function cargarContadores() {
           ${!c.activo ? `<button onclick="cambiarContador('${c.id}')">Editar</button>` : ''}
           <button onclick="gestionarMesas('${c.id}')">🎯 Mesas</button>
           <button onclick="guardarConfiguracion('${c.id}')">💾 Guardar Config</button>
-          ${c.id !== 'default' ? `<button class="danger" onclick="eliminarContador('${c.id}')">Eliminar</button>` : ''}
+          <button class="danger" onclick="eliminarContador('${c.id}')" ${!puedeEliminar ? 'disabled title="Debe haber al menos un contador"' : ''}>Eliminar</button>
         </div>
       `;
       
@@ -395,11 +398,20 @@ window.cambiarContador = async (id) => {
 
 window.eliminarContador = async (id) => {
   if (!confirm('¿Eliminar este contador? Se perderán todos sus datos.')) return;
-  
+
   try {
-    await fetch(`${API}/contadores/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API}/contadores/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+
+    if (!data.success) {
+      alert('No se pudo eliminar: ' + data.message);
+      return;
+    }
+
     cargarContadores();
     actualizarEstado();
+    cargarIconos();
+    cargarMesasActuales();
   } catch (error) {
     alert('Error al eliminar contador');
   }
@@ -740,7 +752,8 @@ async function cargarConfiguraciones() {
           <small>Torneo: ${config.contadorNombre} | Guardado: ${fecha}</small>
         </div>
         <div>
-          <button class="primary" onclick="cargarConfig('${config.id}')">🔥 Cargar</button>
+          <button class="primary" onclick="cargarConfig('${config.id}')">🔥 Cargar en actual</button>
+          <button onclick="crearDesdePlantilla('${config.id}', '${config.nombre.replace(/'/g, "\\'")}')">+ Nuevo contador</button>
           <button class="danger" onclick="eliminarConfig('${config.id}')">🗑️</button>
         </div>
       `;
@@ -773,6 +786,29 @@ window.cargarConfig = async (configId) => {
     }
   } catch (error) {
     alert('Error cargando configuración');
+  }
+};
+
+window.crearDesdePlantilla = async (configId, configNombre) => {
+  const nombre = prompt('Nombre para el nuevo contador:', `${configNombre} (copia)`);
+  if (!nombre || nombre.trim() === '') return;
+
+  try {
+    const res = await fetch(`${API}/contadores/desde-plantilla`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ configId, nombre: nombre.trim() })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert(`Contador "${data.nombre}" creado correctamente`);
+      cargarContadores();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  } catch (error) {
+    alert('Error creando contador desde plantilla');
   }
 };
 

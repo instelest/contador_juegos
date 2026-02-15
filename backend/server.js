@@ -91,12 +91,13 @@ try {
   if (fs.existsSync(DATA_FILE)) {
     estado = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   } else {
+    const primerContadorId = `contador_${Date.now()}`;
     estado = {
-      contadorActual: 'default',
-      contadoresVisibles: ['default'], // IDs de contadores a mostrar en pantalla
-      orientacionVista: 'horizontal', // 'horizontal' o 'vertical'
+      contadorActual: primerContadorId,
+      contadoresVisibles: [primerContadorId],
+      orientacionVista: 'horizontal',
       contadores: {
-        default: crearContadorVacio('default', 'Contador Principal')
+        [primerContadorId]: crearContadorVacio(primerContadorId, 'Contador Principal')
       }
     };
   }
@@ -106,12 +107,28 @@ try {
 }
 
 // Asegurar estructura correcta
-if (!estado.contadorActual) estado.contadorActual = 'default';
 if (!estado.contadores) estado.contadores = {};
-if (!estado.contadoresVisibles) estado.contadoresVisibles = ['default'];
 if (!estado.orientacionVista) estado.orientacionVista = 'horizontal';
-if (!estado.contadores.default) {
-  estado.contadores.default = crearContadorVacio('default', 'Contador Principal');
+
+// Si no hay contadores, crear uno inicial
+if (Object.keys(estado.contadores).length === 0) {
+  const inicialId = `contador_${Date.now()}`;
+  estado.contadores[inicialId] = crearContadorVacio(inicialId, 'Contador Principal');
+}
+
+// Asegurar que contadorActual y contadoresVisibles apunten a contadores existentes
+const idsExistentes = Object.keys(estado.contadores);
+if (!estado.contadorActual || !estado.contadores[estado.contadorActual]) {
+  estado.contadorActual = idsExistentes[0];
+}
+if (!estado.contadoresVisibles || estado.contadoresVisibles.length === 0) {
+  estado.contadoresVisibles = [idsExistentes[0]];
+} else {
+  // Filtrar IDs que ya no existen
+  estado.contadoresVisibles = estado.contadoresVisibles.filter(id => estado.contadores[id]);
+  if (estado.contadoresVisibles.length === 0) {
+    estado.contadoresVisibles = [idsExistentes[0]];
+  }
 }
 
 // Migrar contadores existentes para agregar nuevas propiedades
@@ -275,7 +292,7 @@ function migrarContador(contador) {
 
 // FunciÃ³n para obtener el contador actual
 function getContador() {
-  return estado.contadores[estado.contadorActual] || estado.contadores.default;
+  return estado.contadores[estado.contadorActual] || Object.values(estado.contadores)[0];
 }
 
 // Guardado controlado en disco
@@ -398,27 +415,29 @@ app.get('/api/contadores/visibles', (req, res) => {
 // Eliminar contador
 app.delete('/api/contadores/:id', (req, res) => {
   const { id } = req.params;
-  
-  if (id === 'default') {
-    return res.status(400).json({ success: false, message: 'No se puede eliminar el contador principal' });
-  }
-  
+
   if (!estado.contadores[id]) {
     return res.status(404).json({ success: false, message: 'Contador no encontrado' });
   }
-  
-  // Si es el actual, cambiar al default
-  if (estado.contadorActual === id) {
-    estado.contadorActual = 'default';
+
+  // No permitir borrar el último contador
+  if (Object.keys(estado.contadores).length <= 1) {
+    return res.status(400).json({ success: false, message: 'Debe haber al menos un contador' });
   }
-  
-  // Remover de visibles
+
+  delete estado.contadores[id];
+
+  // Si era el actual, cambiar al primer contador restante
+  if (estado.contadorActual === id) {
+    estado.contadorActual = Object.keys(estado.contadores)[0];
+  }
+
+  // Remover de visibles y asegurar que quede al menos uno
   estado.contadoresVisibles = estado.contadoresVisibles.filter(cid => cid !== id);
   if (estado.contadoresVisibles.length === 0) {
-    estado.contadoresVisibles = ['default'];
+    estado.contadoresVisibles = [Object.keys(estado.contadores)[0]];
   }
-  
-  delete estado.contadores[id];
+
   marcarCambio();
   res.json({ success: true });
 });
@@ -546,6 +565,39 @@ app.delete('/api/configuraciones/:id', (req, res) => {
   } catch (error) {
     console.error('Error eliminando configuraciÃ³n:', error);
     res.status(500).json({ success: false, message: 'Error eliminando configuraciÃ³n' });
+  }
+});
+
+// Crear contador desde plantilla/configuración guardada
+app.post('/api/contadores/desde-plantilla', (req, res) => {
+  const { configId, nombre } = req.body;
+  if (!configId) return res.status(400).json({ success: false, message: 'configId requerido' });
+
+  const configPath = path.join(CONFIGS_DIR, `${configId}.json`);
+  if (!fs.existsSync(configPath)) {
+    return res.status(404).json({ success: false, message: 'Configuración no encontrada' });
+  }
+
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const nuevoId = `contador_${Date.now()}`;
+    const nuevoNombre = nombre || `${config.nombre || 'Plantilla'} (copia)`;
+
+    // Crear contador con la configuración de la plantilla
+    const nuevoContador = JSON.parse(JSON.stringify(config.configuracion));
+    nuevoContador.id = nuevoId;
+    nuevoContador.nombre = nuevoNombre;
+    nuevoContador.contadorActivo = false;
+    nuevoContador.tiempoRestante = nuevoContador.tiempoInicial || 0;
+    nuevoContador.tiempoFinalizacion = null;
+    if (nuevoContador.audio) nuevoContador.audio.reproduciendo = false;
+
+    estado.contadores[nuevoId] = nuevoContador;
+    marcarCambio();
+    res.json({ success: true, id: nuevoId, nombre: nuevoNombre });
+  } catch (error) {
+    console.error('Error creando contador desde plantilla:', error);
+    res.status(500).json({ success: false, message: 'Error creando contador desde plantilla' });
   }
 });
 
