@@ -242,6 +242,24 @@ body {
   font-size: clamp(0.7vh, 1.2vh, 1.6vh);
 }
 
+
+/* Estilos para ronda en vista múltiple */
+.tabla-ronda-multi {
+  background-color: #2a5;
+  color: white;
+  padding: 8px;
+  border-radius: 5px 5px 0 0;
+  text-align: center;
+  font-weight: bold;
+  font-size: clamp(1.2vh, 2vh, 2.5vh);
+  text-transform: uppercase;
+  margin-bottom: 0;
+}
+
+.tabla-mesas-container-con-ronda .tabla-mesas {
+  border-radius: 0 0 5px 5px;
+}
+
 audio {
   display: none;
 }
@@ -251,7 +269,7 @@ audio {
 <div id="gridContainer" class="grid-container grid-1"></div>
 
 <script>
-const API = `http://${window.location.hostname}:3000/api`;
+const API = `${window.location.origin}/api`;
 let contadoresActuales = [];
 let orientacionActual = 'horizontal';
 let audioPlayers = {};
@@ -370,26 +388,49 @@ function actualizarMesas(contador) {
     return;
   }
   
+  // Verificar temporizador de visibilidad
+  if (contador.configMesas && contador.configMesas.tiempoVisible !== null && contador.configMesas.timestampContadorInicio) {
+    const tiempoTranscurrido = (Date.now() - contador.configMesas.timestampContadorInicio) / 1000;
+    if (tiempoTranscurrido > contador.configMesas.tiempoVisible) {
+      container.innerHTML = '';
+      return;
+    }
+  }
+  
   const mesasActivas = contador.mesas.filter(m => m.activa);
   if (mesasActivas.length === 0) {
     container.innerHTML = '';
     return;
   }
   
-  let html = '<table class="tabla-mesas"><thead><tr><th>Mesa</th><th>Emparejamiento</th></tr></thead><tbody>';
-  
-  mesasActivas.forEach(m => {
-    let emparejamiento;
-    if (m.jugador2 === '' || m.jugador2.toLowerCase() === 'bye') {
-      emparejamiento = `${m.jugador1} <span class="bye">- BYE</span>`;
-    } else {
-      emparejamiento = `${m.jugador1} <span class="vs">vs</span> ${m.jugador2}`;
-    }
-    
-    html += `<tr><td class="mesa-num">${m.mesa}</td><td>${emparejamiento}</td></tr>`;
+  const tituloMesa = (contador.configMesas && contador.configMesas.tituloMesa) || 'Mesa';
+  const tituloEmparejamiento = (contador.configMesas && contador.configMesas.tituloEmparejamiento) || 'Emparejamiento';
+  const columnas = (contador.configMesas && contador.configMesas.columnas) || 1;
+
+  // Dividir mesas en N grupos
+  const grupos = [];
+  for (let i = 0; i < columnas; i++) {
+    grupos.push([]);
+  }
+  mesasActivas.forEach((m, idx) => {
+    grupos[idx % columnas].push(m);
   });
-  
-  html += '</tbody></table>';
+
+  let html = '<div style="display:flex; gap:10px; justify-content:center; width:100%;">';
+  grupos.forEach(grupo => {
+    html += `<table class="tabla-mesas" style="flex:1;"><thead><tr><th>${tituloMesa}</th><th>${tituloEmparejamiento}</th></tr></thead><tbody>`;
+    grupo.forEach(m => {
+      let emparejamiento;
+      if (m.jugador2 === '' || m.jugador2.toLowerCase() === 'bye') {
+        emparejamiento = `${m.jugador1} <span class="bye">- BYE</span>`;
+      } else {
+        emparejamiento = `${m.jugador1} <span class="vs">vs</span> ${m.jugador2}`;
+      }
+      html += `<tr><td class="mesa-num">${m.mesa}</td><td>${emparejamiento}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  });
+  html += '</div>';
   container.innerHTML = html;
 }
 
@@ -411,10 +452,18 @@ function actualizarContador(contador) {
     display.style.color = contador.colorContador;
   }
   
-  // Actualizar texto
+  // Actualizar texto (con ronda si existe)
   const texto = box.querySelector('.texto-contador');
   if (texto) {
-    texto.textContent = contador.texto;
+    let textoMostrar = contador.texto;
+    if (textoMostrar === 'Preparado para iniciar' && (contador.contadorActivo || contador.tiempoFinalizacion)) {
+      textoMostrar = '';
+    }
+    if (contador.configMesas && contador.configMesas.ronda) {
+      texto.textContent = textoMostrar ? contador.configMesas.ronda + ' - ' + textoMostrar : contador.configMesas.ronda;
+    } else {
+      texto.textContent = textoMostrar;
+    }
     texto.style.color = contador.colorTexto;
   }
   

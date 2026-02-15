@@ -4,36 +4,45 @@
 <meta charset="UTF-8">
 <title>Panel Admin Contador</title>
 <style>
-  body { font-family: Arial,sans-serif; background-color:#111; color:#fff; padding:20px; }
+  body { font-family: Arial,sans-serif; background-color:#111; color:#fff; padding:10px; }
   h1,h2,h3{text-align:center;}
   .botones,.estilos{margin:20px 0; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;}
-  button{padding:10px 20px; font-size:16px; cursor:pointer; background:#333; color:#fff; border:none; border-radius:5px;}
+  button{padding:14px 24px; font-size:17px; cursor:pointer; background:#333; color:#fff; border:none; border-radius:8px; min-height:44px; touch-action:manipulation;}
   button:hover{background:#555;}
   button.primary{background:#2a5;}
   button.primary:hover{background:#3c7;}
   button.danger{background:#a52;}
   button.danger:hover{background:#c74;}
-  input[type=text], input[type=number], input[type=color]{padding:5px; font-size:16px; margin:5px; width:80px; background:#222; color:#fff; border:1px solid #444;}
+  input[type=text], input[type=number], input[type=color]{padding:8px; font-size:16px; margin:5px; width:80px; background:#222; color:#fff; border:1px solid #444; border-radius:5px; min-height:40px;}
+  select{padding:8px; font-size:16px; min-height:40px; background:#222; color:#fff; border:1px solid #444; border-radius:5px;}
   #estadoTiempo{margin-top:10px; font-size:1.2em; text-align:center; width:100%;}
   .seccion{background:#222; padding:20px; margin:20px 0; border-radius:10px;}
   .audio-controls{display:flex; flex-direction:column; gap:10px; align-items:center;}
   .audio-status{padding:10px; background:#333; border-radius:5px; margin:10px 0;}
-  textarea{width:90%; min-height:200px; background:#222; color:#fff; border:1px solid #444; padding:10px; font-family:monospace;}
-  .mesa-item{background:#333; padding:10px; margin:5px 0; border-radius:5px; display:flex; justify-content:space-between; align-items:center;}
+  textarea{width:90%; min-height:200px; background:#222; color:#fff; border:1px solid #444; padding:10px; font-family:monospace; font-size:16px;}
+  .mesa-item{background:#333; padding:10px; margin:5px 0; border-radius:5px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;}
   .mesa-item input{width:50px; background:#222; color:#fff; border:1px solid #444; padding:3px;}
   .mesa-item input[type=text]{width:200px;}
-  .contador-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
+  .contador-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
   .contador-item.activo{border:2px solid #2a5; background:#1a3;}
-  .config-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
-  .icono-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; gap:15px; align-items:center;}
+  .config-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
+  .icono-item{background:#333; padding:15px; margin:10px; border-radius:8px; display:flex; gap:15px; align-items:center; flex-wrap:wrap;}
   .icono-preview{width:60px; height:60px; object-fit:contain; background:#222; border-radius:5px;}
-  .icono-controls{display:flex; flex-direction:column; gap:5px; flex:1;}
+  .icono-controls{display:flex; flex-direction:column; gap:8px; flex:1; min-width:200px;}
   .icono-controls input{width:60px;}
-  .tabs{display:flex; gap:10px; margin-bottom:20px; justify-content:center; flex-wrap:wrap;}
-  .tab{padding:10px 20px; cursor:pointer; background:#333; border-radius:5px;}
+  .tabs{display:flex; gap:8px; margin-bottom:20px; justify-content:center; flex-wrap:wrap;}
+  .tab{padding:14px 20px; cursor:pointer; background:#333; border-radius:8px; font-size:16px; min-height:44px; touch-action:manipulation;}
   .tab.active{background:#2a5;}
   .tab-content{display:none;}
   .tab-content.active{display:block;}
+  .btn-cruceta{width:40px!important; height:40px!important; padding:0!important; font-size:20px!important; min-height:40px!important; display:inline-flex; align-items:center; justify-content:center;}
+  @media (max-width: 768px) {
+    body{padding:5px;}
+    button{padding:12px 16px; font-size:15px;}
+    .tab{padding:12px 14px; font-size:14px;}
+    .contador-item, .config-item{flex-direction:column; text-align:center;}
+    .icono-item{flex-direction:column; text-align:center;}
+  }
   .biblioteca-categoria{margin:20px 0;}
   .biblioteca-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:15px; margin-top:10px;}
   .biblioteca-item{background:#333; padding:10px; border-radius:5px; text-align:center; position:relative;}
@@ -45,7 +54,13 @@
 </style>
 </head>
 <body>
-<h1 id="tituloPanel">Panel de Control</h1>
+<div style="display:flex; justify-content:center; align-items:center; gap:15px; flex-wrap:wrap;">
+  <h1 id="tituloPanel" style="margin:10px 0;">Panel de Control</h1>
+  <div>
+    <button onclick="window.open(window.location.origin, '_blank')" class="primary">Vista Contador</button>
+    <button onclick="window.open(window.location.origin + '/multi.html', '_blank')" class="primary">Vista Multiple</button>
+  </div>
+</div>
 
 <!-- Gestión de contadores -->
 <div class="seccion">
@@ -122,16 +137,57 @@
 
 <!-- Tab: Estilos -->
 <div class="tab-content" data-content="estilos">
-  <div class="seccion botones estilos">
+  <div class="seccion">
     <h2>Texto y Colores</h2>
-    <input type="text" id="textoInput" placeholder="Texto del contador" style="width:300px;">
-    <button id="setTextBtn" class="primary">Actualizar texto</button><br>
-    <label>Color contador: <input type="color" id="colorContador" value="#ff0000"></label>
-    <label>Tamaño contador (vh): <input type="number" id="tamanoContador" min="1" max="100" value="40"></label><br>
-    <label>Color texto: <input type="color" id="colorTexto" value="#ffffff"></label>
-    <label>Tamaño texto (vh): <input type="number" id="tamanoTexto" min="1" max="50" value="10"></label><br>
-    <label>Color fondo: <input type="color" id="colorFondo" value="#000000"></label>
-    <button id="setStyleBtn" class="primary">Actualizar estilos</button>
+
+    <div style="text-align:center; margin-bottom:20px;">
+      <input type="text" id="textoInput" placeholder="Texto del contador" style="width:80%; max-width:400px;">
+      <button id="setTextBtn" class="primary">Actualizar texto</button>
+    </div>
+
+    <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+      <h3 style="text-align:center;">Tamaño del Texto</h3>
+      <div style="text-align:center; margin:15px 0;">
+        <label style="display:block; margin-bottom:10px; font-weight:bold;">
+          Tamaño: <span id="tamanoTextoValue">10</span>vh
+        </label>
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;">
+          <button onclick="ajustarTamanoTexto(-2)">--</button>
+          <button onclick="ajustarTamanoTexto(-1)">-</button>
+          <input type="range" id="tamanoTextoSlider" min="1" max="30" value="10"
+                 style="width:200px;"
+                 oninput="actualizarTamanoTextoSlider(this.value)">
+          <button onclick="ajustarTamanoTexto(1)">+</button>
+          <button onclick="ajustarTamanoTexto(2)">++</button>
+        </div>
+        <div style="margin-top:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+          <button onclick="setTamanoTextoDirecto(4)">Muy Peq (4)</button>
+          <button onclick="setTamanoTextoDirecto(6)">Peq (6)</button>
+          <button onclick="setTamanoTextoDirecto(8)">Med (8)</button>
+          <button onclick="setTamanoTextoDirecto(10)" class="primary">Normal (10)</button>
+          <button onclick="setTamanoTextoDirecto(14)">Grande (14)</button>
+          <button onclick="setTamanoTextoDirecto(20)">Muy Grande (20)</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:20px;">
+      <h3 style="text-align:center;">Colores</h3>
+      <div style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center; margin-top:15px;">
+        <label style="display:flex; align-items:center; gap:8px;">Color contador: <input type="color" id="colorContador" value="#ff0000"></label>
+        <label style="display:flex; align-items:center; gap:8px;">Tamaño contador (vh): <input type="number" id="tamanoContador" min="1" max="100" value="40"></label>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center; margin-top:10px;">
+        <label style="display:flex; align-items:center; gap:8px;">Color texto: <input type="color" id="colorTexto" value="#ffffff"></label>
+        <label style="display:flex; align-items:center; gap:8px;">Tamaño texto (vh): <input type="number" id="tamanoTexto" min="1" max="50" value="10"></label>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center; margin-top:10px;">
+        <label style="display:flex; align-items:center; gap:8px;">Color fondo: <input type="color" id="colorFondo" value="#000000"></label>
+      </div>
+      <div style="text-align:center; margin-top:15px;">
+        <button id="setStyleBtn" class="primary">Actualizar estilos</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -408,7 +464,11 @@
       <input type="text" id="iconoNombre" placeholder="Nombre del icono" style="width:200px;"><br>
       <label>Tamaño (px): <input type="number" id="iconoTamano" value="100" min="20" max="500"></label><br>
       <label>Posición X (%): <input type="number" id="iconoPosX" value="50" min="0" max="100"></label>
-      <label>Posición Y (%): <input type="number" id="iconoPosY" value="50" min="0" max="100"></label><br>
+      <button type="button" class="btn-cruceta" onclick="document.getElementById('iconoPosX').value = Math.max(0, parseInt(document.getElementById('iconoPosX').value)-1)">◄</button>
+      <button type="button" class="btn-cruceta" onclick="document.getElementById('iconoPosX').value = Math.min(100, parseInt(document.getElementById('iconoPosX').value)+1)">►</button>
+      <label>Posición Y (%): <input type="number" id="iconoPosY" value="50" min="0" max="100"></label>
+      <button type="button" class="btn-cruceta" onclick="document.getElementById('iconoPosY').value = Math.max(0, parseInt(document.getElementById('iconoPosY').value)-1)">▲</button>
+      <button type="button" class="btn-cruceta" onclick="document.getElementById('iconoPosY').value = Math.min(100, parseInt(document.getElementById('iconoPosY').value)+1)">▼</button><br>
       <button id="subirIconoBtn" class="primary">📤 Añadir Icono</button>
     </div>
 
@@ -676,14 +736,6 @@
           </div>
           <p style="text-align:center; color:#888; font-size:0.9em; margin-top:8px;">
             ⭐ Por defecto: 30 segundos
-          </p>margin-top:10px; display:flex; gap:5px; flex-wrap:wrap;">
-            <button onclick="setTiempoMesas(300)" class="tiempo-btn" style="padding:8px 15px;">5 min</button>
-            <button onclick="setTiempoMesas(600)" class="tiempo-btn primary active" style="padding:8px 15px;">10 min ⭐</button>
-            <button onclick="setTiempoMesas(900)" class="tiempo-btn" style="padding:8px 15px;">15 min</button>
-          </div>
-          <p style="text-align:center; color:#888; font-size:0.9em; margin-top:8px;">
-            ⭐ Por defecto: 10 minutos
-          </p>
         </div>
       </div>
       

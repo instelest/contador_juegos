@@ -4,5 +4,6 @@
   "colorTexto": "#ffffff",
   "tamanoTexto": "10vh",
   "colorFondo": "#000000",
-  "tiempoPorDefecto": 0
+  "tiempoPorDefecto": 0,
+  "puerto": 3001
 }

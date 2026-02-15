@@ -10,31 +10,33 @@ body {
   color: #fff; 
   margin: 0; 
   padding: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  position: relative;
+  min-height: 100vh;
 }
 
-/* Vista Single */
-#singleView {
+#vistaIndividual {
+  display: block;
   width: 100vw;
   height: 100vh;
   position: relative;
-  display: none;
 }
 
-#singleView.active {
+#vistaIndividual.active {
   display: block;
 }
 
 #logoContainer {
   position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 340px;
   z-index: 100;
-  pointer-events: none;
 }
 
 #logoContainer img {
   width: 100%;
   height: auto;
-  display: block;
 }
 
 #iconosContainer {
@@ -51,26 +53,22 @@ body {
   position: absolute;
   transform: translate(-50%, -50%);
   object-fit: contain;
+  transition: all 0.3s ease;
 }
 
 #contadorContainer {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  user-select: none;
   z-index: 10;
 }
 
 #textoContador { 
-  font-size: 10vh;
-  text-align: center;
-  width: 100%;
+  font-size: 10vh; 
   margin-bottom: 10px;
+  text-align: center;
 }
 
 #contador { 
@@ -80,147 +78,153 @@ body {
   user-select: none;
   transition: opacity 0.2s;
   text-align: center;
+  line-height: 1;
 }
 
 #contador:hover {
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 #finMensaje {
   font-weight: bold;
   text-align: center;
+  margin-top: 10px;
   font-size: 8vh;
   color: #ff0000;
-  margin-top: 10px;
 }
 
-/* Vista Multi */
-#multiView {
-  width: 100vw;
-  height: 100vh;
-  display: none;
-}
-
-#multiView.active {
-  display: block;
-}
-
-.grid-container {
-  display: grid;
-  width: 100vw;
-  height: 100vh;
-  gap: 10px;
-  padding: 10px;
-  box-sizing: border-box;
-}
-
-.grid-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
-.grid-2.horizontal { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
-.grid-2.vertical { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-.grid-3.horizontal { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr; }
-.grid-3.vertical { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr; }
-.grid-4.horizontal { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.grid-4.vertical { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; }
-.grid-5.horizontal { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.grid-5.vertical { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; }
-.grid-6.horizontal { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.grid-6.vertical { grid-template-columns: 1fr; grid-template-rows: repeat(6, 1fr); }
-
-.contador-box {
-  background-color: #111;
-  border: 2px solid #333;
-  border-radius: 10px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  padding: 20px;
-}
-
-.contador-box.activo { border-color: #2a5; }
-
-.nombre-contador {
+#tablaMesas {
   position: absolute;
-  top: 10px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0,0,0,0.7);
-  padding: 5px 15px;
-  border-radius: 5px;
-  font-size: 1.5vh;
-  font-weight: bold;
-  z-index: 200;
+  width: 95%;
+  z-index: 5;
+  overflow: visible;
 }
 
-.logo-multi {
-  position: absolute;
-  z-index: 100;
-  pointer-events: none;
-}
-
-.logo-multi img {
+.tabla-container {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: nowrap;
   width: 100%;
-  height: auto;
+  align-items: flex-start;
 }
 
-.iconos-box {
-  position: absolute;
-  width: 100%;
-  height: 100%;
+.tabla-container .tabla-mesas {
+  flex: 1;
+  min-width: 0;
+}
+
+.tabla-mesas {
+  border-collapse: collapse;
+  background-color: rgba(20, 20, 20, 0.9);
+  border-radius: 10px;
+  overflow: hidden;
+  table-layout: fixed;
+}
+
+.tabla-mesas thead {
+  background-color: #ff3b3b;
+  position: sticky;
   top: 0;
-  left: 0;
-  pointer-events: none;
-  z-index: 50;
+  z-index: 1;
 }
 
-.texto-box {
-  font-size: 5vh;
-  margin-bottom: 10px;
-  text-align: center;
-}
-
-.contador-display {
-  font-size: 20vh;
+.tabla-mesas th {
+  padding: 15px 8px;
   font-weight: bold;
-  text-align: center;
-  cursor: pointer;
-  user-select: none;
-  transition: opacity 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.contador-display:hover { opacity: 0.8; }
+.tabla-mesas tbody tr {
+  border-bottom: 1px solid #333;
+  transition: background-color 0.3s;
+}
 
-.fin-mensaje-box {
-  font-size: 4vh;
+.tabla-mesas tbody tr:hover {
+  background-color: rgba(255, 59, 59, 0.1);
+}
+
+.tabla-mesas tbody tr:last-child {
+  border-bottom: none;
+}
+
+.tabla-mesas td {
+  padding: 6px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mesa-num {
   font-weight: bold;
-  color: #ff0000;
-  margin-top: 10px;
-  text-align: center;
+  color: #ff8800;
 }
 
-audio { display: none; }
+@media (max-width: 768px) {
+  #tablaMesas {
+    width: 98%;
+  }
+  
+  .tabla-mesas {
+    font-size: 1.5vh;
+  }
+  
+  .tabla-mesas th,
+  .tabla-mesas td {
+    padding: 4px;
+  }
+}
+
+#vistaMultiple {
+  display: none;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+#vistaMultiple.active {
+  display: flex;
+}
+
+#mensajeRedireccion {
+  font-size: 3vh;
+  color: #2a5;
+  margin-bottom: 20px;
+}
+
+audio {
+  display: none;
+}
 </style>
 </head>
 <body>
 
-<!-- Vista Single -->
-<div id="singleView">
-  <div id="logoContainer"></div>
+<div id="vistaIndividual">
+  <div id="logoContainer"><img src="logo.png" alt="Logo" id="logo"></div>
   <div id="iconosContainer"></div>
+
   <div id="contadorContainer">
     <div id="textoContador">Preparado para iniciar</div>
     <div id="contador">00:00</div>
     <div id="finMensaje"></div>
   </div>
+
   <audio id="audioPlayer"></audio>
   <div id="tablaMesas"></div>
 </div>
 
-<!-- Vista Multi -->
-<div id="multiView">
-  <div id="gridContainer" class="grid-container"></div>
+<div id="vistaMultiple">
+  <div id="mensajeRedireccion">Redirigiendo a vista múltiple...</div>
 </div>
 
 <script src="script.js"></script>

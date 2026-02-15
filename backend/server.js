@@ -6,7 +6,16 @@ const multer = require('multer');
 const { getAudioDurationInSeconds } = require('get-audio-duration');
 
 const app = express();
-const PORT = 3001;
+
+// Leer puerto desde config.json
+let configPuerto = 3000;
+try {
+  const configFile = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
+  configPuerto = configFile.puerto || 3000;
+} catch(e) {
+  console.log('No se pudo leer config.json, usando puerto por defecto 3000');
+}
+const PORT = configPuerto;
 
 // Configurar multer para subir audio
 const audioStorage = multer.diskStorage({
@@ -1386,17 +1395,23 @@ app.delete('/api/contador/:id/mesas', (req, res) => {
 
 // Mantener endpoints legacy para compatibilidad (usan contador actual)
 app.post('/api/create-table', (req, res) => {
-  const { emparejamientos } = req.body;
+  const { emparejamientos, ronda } = req.body;
   if (!emparejamientos || !Array.isArray(emparejamientos)) {
     return res.status(400).json({ success: false, message: 'Formato inválido' });
   }
 
   const contador = getContador();
+  
+  // Guardar ronda en configMesas
+  if (!contador.configMesas) contador.configMesas = {};
+  contador.configMesas.ronda = ronda || null;
+  
   contador.mesas = emparejamientos.map(e => ({
     mesa: e.mesa,
     jugador1: e.jugador1,
     jugador2: e.jugador2,
-    activa: e.activa !== false
+    activa: e.activa !== false,
+    ronda: ronda || null
   }));
 
   marcarCambio();
@@ -1493,7 +1508,7 @@ setInterval(() => {
 // ------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en http://localhost:${PORT}`);
-  console.log(`Panel admin: http://localhost:${PORT}/admin`);
-  console.log(`Vista Ãºnica: http://localhost:${PORT}`);
-  console.log(`Vista mÃºltiple: http://localhost:${PORT}/multi.html`);
+  console.log(`Panel Admin: http://localhost:${PORT}/admin`);
+  console.log(`Vista Unica: http://localhost:${PORT}`);
+  console.log(`Vista multiple: http://localhost:${PORT}/multi.html`);
 });

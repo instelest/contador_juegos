@@ -1,4 +1,4 @@
-k// Script para limpiar iconos y logos inexistentes del data.json
+// Script para limpiar iconos y logos inexistentes del data.json
 // Ejecutar con: node limpiar-archivos.js
 
 const fs = require('fs');

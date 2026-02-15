@@ -1,6 +1,5 @@
-const API = `http://${window.location.hostname}:3000/api`;
+const API = `${window.location.origin}/api`;
 const estadoEl = document.getElementById('estadoTiempo');
-const audioStatusEl = document.getElementById('audioStatus');
 
 // ============================================
 // Sistema de tabs
@@ -455,17 +454,25 @@ async function cargarIconos() {
         <img src="/iconos/${icono.archivo}" class="icono-preview">
         <div class="icono-controls">
           <div><strong>${icono.nombre}</strong></div>
-          <div>
-            <label>Tamaño: <input type="number" value="${icono.tamano}" min="20" max="500" 
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label>Tamaño: <input type="number" value="${icono.tamano}" min="20" max="500"
               onchange="actualizarIcono('${icono.id}', 'tamano', this.value)"></label>
-            <label>X: <input type="number" value="${icono.posX}" min="0" max="100" 
+            <label>X: <input type="number" value="${icono.posX}" min="0" max="100" id="iconoPosX-${icono.id}"
               onchange="actualizarIcono('${icono.id}', 'posX', this.value)"></label>
-            <label>Y: <input type="number" value="${icono.posY}" min="0" max="100" 
+            <span style="display:inline-flex; gap:4px;">
+              <button class="btn-cruceta" onclick="ajustarIconoPos('${icono.id}', 'posX', -1)">◄</button>
+              <button class="btn-cruceta" onclick="ajustarIconoPos('${icono.id}', 'posX', 1)">►</button>
+            </span>
+            <label>Y: <input type="number" value="${icono.posY}" min="0" max="100" id="iconoPosY-${icono.id}"
               onchange="actualizarIcono('${icono.id}', 'posY', this.value)"></label>
+            <span style="display:inline-flex; gap:4px;">
+              <button class="btn-cruceta" onclick="ajustarIconoPos('${icono.id}', 'posY', -1)">▲</button>
+              <button class="btn-cruceta" onclick="ajustarIconoPos('${icono.id}', 'posY', 1)">▼</button>
+            </span>
           </div>
           <div>
             <label>
-              <input type="checkbox" ${icono.visible ? 'checked' : ''} 
+              <input type="checkbox" ${icono.visible ? 'checked' : ''}
                 onchange="actualizarIcono('${icono.id}', 'visible', this.checked)">
               Visible
             </label>
@@ -480,6 +487,14 @@ async function cargarIconos() {
     console.error('Error cargando iconos:', error);
   }
 }
+
+window.ajustarIconoPos = async (id, campo, delta) => {
+  const input = document.getElementById(`icono${campo === 'posX' ? 'PosX' : 'PosY'}-${id}`);
+  if (!input) return;
+  const nuevoValor = Math.max(0, Math.min(100, parseInt(input.value) + delta));
+  input.value = nuevoValor;
+  await actualizarIcono(id, campo, nuevoValor);
+};
 
 window.actualizarIcono = async (id, campo, valor) => {
   try {
@@ -646,14 +661,7 @@ async function actualizarEstado(){
     document.title = `Contador: ${formatoTiempo(data.tiempoRestante)}`;
     document.getElementById('tituloPanel').textContent = `Panel de Control - ${formatoTiempo(data.tiempoRestante)}`;
     
-    if(data.audio && data.audio.archivo){
-      const modoTexto = data.audio.modo === 'final' ? 'al final (00:00)' : `automático (${data.audio.duracion}s antes del final)`;
-      audioStatusEl.textContent = `Audio: ${data.audio.archivo} - Duración: ${data.audio.duracion}s - Modo: ${modoTexto}`;
-      audioStatusEl.style.background = '#2a5';
-    } else {
-      audioStatusEl.textContent = 'Sin audio configurado';
-      audioStatusEl.style.background = '#333';
-    }
+    // Audio status se actualiza en actualizarEstadoAudio()
   }catch(e){
     estadoEl.textContent = 'Error al conectar con el servidor';
   }
@@ -825,6 +833,58 @@ document.getElementById('setStyleBtn').addEventListener('click', async ()=>{
     colorFondo: document.getElementById('colorFondo').value
   };
   await fetch(`${API}/estilo`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+});
+
+// ============================================
+// Control de tamaño de texto
+// ============================================
+let tamanoTextoActual = 10;
+
+window.ajustarTamanoTexto = async function(delta) {
+  tamanoTextoActual = Math.max(1, Math.min(30, tamanoTextoActual + delta));
+  document.getElementById('tamanoTextoSlider').value = tamanoTextoActual;
+  document.getElementById('tamanoTexto').value = tamanoTextoActual;
+  document.getElementById('tamanoTextoValue').textContent = tamanoTextoActual;
+  await fetch(`${API}/estilo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tamanoTexto: tamanoTextoActual + 'vh' })
+  });
+};
+
+window.setTamanoTextoDirecto = async function(tamano) {
+  tamanoTextoActual = tamano;
+  document.getElementById('tamanoTextoSlider').value = tamano;
+  document.getElementById('tamanoTexto').value = tamano;
+  document.getElementById('tamanoTextoValue').textContent = tamano;
+  await fetch(`${API}/estilo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tamanoTexto: tamano + 'vh' })
+  });
+};
+
+window.actualizarTamanoTextoSlider = async function(value) {
+  tamanoTextoActual = parseInt(value);
+  document.getElementById('tamanoTexto').value = tamanoTextoActual;
+  document.getElementById('tamanoTextoValue').textContent = tamanoTextoActual;
+  await fetch(`${API}/estilo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tamanoTexto: tamanoTextoActual + 'vh' })
+  });
+};
+
+// Cargar tamaño de texto actual al cambiar al tab de estilos
+document.querySelector('[data-tab="estilos"]').addEventListener('click', async () => {
+  try {
+    const res = await fetch(`${API}/status`);
+    const data = await res.json();
+    tamanoTextoActual = parseInt(data.tamanoTexto) || 10;
+    document.getElementById('tamanoTextoSlider').value = tamanoTextoActual;
+    document.getElementById('tamanoTexto').value = tamanoTextoActual;
+    document.getElementById('tamanoTextoValue').textContent = tamanoTextoActual;
+  } catch(e) {}
 });
 
 // ============================================
@@ -1023,8 +1083,44 @@ document.getElementById('deleteAudioBtn').addEventListener('click', async () => 
 // ============================================
 // Parser de mesas con soporte UTF-8
 // ============================================
+
+/**
+ * Convierte "Apellidos, Nombre" + "Nick" a "Nick Nombre Apellidos"
+ * Ejemplos:
+ *   convertirNombreFormato("Meijide, Pedro", "Erjam") 
+ *     → "Erjam Pedro Meijide"
+ *   
+ *   convertirNombreFormato("Silvela Sánchez, Francisco Javier", "Silvela")
+ *     → "Silvela Francisco Javier Silvela Sánchez"
+ */
+function convertirNombreFormato(nombreApellidos, nick) {
+  if (!nick) {
+    // Si no hay nick, solo invertir el orden: "Nombre Apellidos"
+    const partes = nombreApellidos.split(',').map(p => p.trim());
+    if (partes.length === 2) {
+      return `${partes[1]} ${partes[0]}`;  // "Nombre Apellidos"
+    }
+    return nombreApellidos;
+  }
+  
+  // Separar apellidos y nombre
+  const partes = nombreApellidos.split(',').map(p => p.trim());
+  
+  if (partes.length !== 2) {
+    // Formato inesperado, devolver con nick al inicio
+    return `${nick} ${nombreApellidos}`;
+  }
+  
+  const apellidos = partes[0];  // "Meijide" o "Silvela Sánchez"
+  const nombre = partes[1];     // "Pedro" o "Francisco Javier"
+  
+  // NUEVO FORMATO: Nick Nombre Apellidos
+  return `${nick} ${nombre} ${apellidos}`;
+}
+
 function parsearTextoTorneo(texto) {
   const emparejamientos = [];
+  let ronda = null;  // Detectar la ronda
   
   // Limpiar y dividir en líneas, eliminando vacías
   const lineas = texto.split('\n')
@@ -1032,6 +1128,16 @@ function parsearTextoTorneo(texto) {
     .filter(l => l.length > 0);  // Solo líneas no vacías
   
   console.log(`📝 Analizando ${lineas.length} líneas...`);
+  
+  // Detectar ronda (buscar "Round X (In Progress)" o "Round X in progress")
+  for (const linea of lineas) {
+    const matchRonda = linea.match(/^Round\s+(\d+)\s*(?:\(In Progress\)|in progress)?$/i);
+    if (matchRonda) {
+      ronda = `Round ${matchRonda[1]}`;
+      console.log(`🎯 Ronda detectada: ${ronda}`);
+      break;
+    }
+  }
   
   // Palabras clave a ignorar
   const ignorar = /^(organize|events|games|organization|settings|documentation|support|admin|details|players|standings|pairings|tournament|controls|control|rounds|phases|and|message|por|favor|se|dan|minutos|tras|ese|tiempo|matches|status|round|in|progress|swiss|phase|upcoming|view|manage|result|actions|record|judge|at|table|page|of|row|rows|selected|riftbound|summoner|skirmish|january)$/i;
@@ -1089,7 +1195,8 @@ function parsearTextoTorneo(texto) {
         i++;
       }
       
-      const jugador = nick ? `${nombre} (${nick})` : nombre;
+      // NUEVO FORMATO: Nick Nombre Apellidos
+      const jugador = convertirNombreFormato(nombre, nick);
       emparejamientos.push({
         mesa: 0,
         jugador1: jugador,
@@ -1152,8 +1259,9 @@ function parsearTextoTorneo(texto) {
       
       // Crear emparejamiento si tenemos 2 jugadores
       if (jugadores.length === 2) {
-        const j1 = jugadores[0].nick ? `${jugadores[0].nombre} (${jugadores[0].nick})` : jugadores[0].nombre;
-        const j2 = jugadores[1].nick ? `${jugadores[1].nombre} (${jugadores[1].nick})` : jugadores[1].nombre;
+        // NUEVO FORMATO: Nick Nombre Apellidos
+        const j1 = convertirNombreFormato(jugadores[0].nombre, jugadores[0].nick);
+        const j2 = convertirNombreFormato(jugadores[1].nombre, jugadores[1].nick);
         
         emparejamientos.push({
           mesa,
@@ -1174,7 +1282,9 @@ function parsearTextoTorneo(texto) {
   }
   
   console.log(`\n✅ RESULTADO: ${emparejamientos.length} emparejamientos detectados`);
-  return emparejamientos;
+  
+  // Retornar emparejamientos y ronda
+  return { emparejamientos, ronda };
 }
 
 document.getElementById('parseMesasBtn').addEventListener('click', async () => {
@@ -1184,7 +1294,13 @@ document.getElementById('parseMesasBtn').addEventListener('click', async () => {
     return;
   }
 
-  let emparejamientos = parsearTextoTorneo(texto);
+  const resultado = parsearTextoTorneo(texto);
+  let emparejamientos = resultado.emparejamientos;
+  const ronda = resultado.ronda;
+  
+  if (ronda) {
+    console.log(`✅ Ronda detectada: ${ronda}`);
+  }
   
   if (emparejamientos.length === 0) {
     const lineas = texto.split('\n').filter(l => l.trim() && l.includes('|'));
@@ -1211,7 +1327,7 @@ document.getElementById('parseMesasBtn').addEventListener('click', async () => {
     const res = await fetch(`${API}/create-table`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emparejamientos })
+      body: JSON.stringify({ emparejamientos, ronda })
     });
     const data = await res.json();
     
