@@ -123,12 +123,7 @@ async function actualizar(){
     if (textoMostrar === 'Preparado para iniciar' && (data.contadorActivo || data.tiempoFinalizacion)) {
       textoMostrar = '';
     }
-    // Anteponer ronda si existe
-    if (data.configMesas && data.configMesas.ronda) {
-      textoEl.textContent = textoMostrar ? data.configMesas.ronda + ' - ' + textoMostrar : data.configMesas.ronda;
-    } else {
-      textoEl.textContent = textoMostrar;
-    }
+    textoEl.textContent = textoMostrar;
 
     // Contador
     let minutos = Math.floor(data.tiempoRestante/60);
@@ -263,13 +258,20 @@ function actualizarTablaMesas(mesas, configMesas) {
   const tamFilas = (configMesas && configMesas.tamFilas) || 2.2;
   const tamNumero = (configMesas && configMesas.tamNumero) || 2.5;
 
+  // Ajustar tamaño de fuente solo si hay múltiples columnas
+  const factorColumnas = columnas > 1 ? Math.max(0.7, 1 - (columnas - 1) * 0.12) : 1;
+
+  const tamFilasAjustado = (tamFilas * factorColumnas).toFixed(1);
+  const tamCabeceraAjustado = (tamCabecera * factorColumnas).toFixed(1);
+  const tamNumeroAjustado = (tamNumero * factorColumnas).toFixed(1);
+
   let html = '<div class="tabla-container">';
 
   grupos.forEach(grupo => {
-    html += `<table class="tabla-mesas" style="background-color:${colorFondoTabla};font-size:${tamFilas}vh;">
+    html += `<table class="tabla-mesas" style="background-color:${colorFondoTabla};font-size:${tamFilasAjustado}vh;">
       <thead style="background-color:${colorCabecera};"><tr>
-        <th style="font-size:${tamCabecera}vh;">${tituloMesa}</th>
-        <th style="font-size:${tamCabecera}vh;">${tituloEmparejamiento}</th>
+        <th class="th-mesa" style="font-size:${tamCabeceraAjustado}vh;">${tituloMesa}</th>
+        <th class="th-emparejamiento" style="font-size:${tamCabeceraAjustado}vh;">${tituloEmparejamiento}</th>
       </tr></thead><tbody>`;
     grupo.forEach(m => {
       let emparejamiento;
@@ -279,8 +281,8 @@ function actualizarTablaMesas(mesas, configMesas) {
         emparejamiento = `${m.jugador1} <span class="vs" style="color:${colorVS};">vs</span> ${m.jugador2}`;
       }
       html += `<tr>
-        <td class="mesa-num" style="color:${colorNumero};font-size:${tamNumero}vh;">${m.mesa}</td>
-        <td class="jugadores">${emparejamiento}</td>
+        <td class="mesa-num" style="color:${colorNumero};font-size:${tamNumeroAjustado}vh;text-align:center;">${m.mesa}</td>
+        <td class="jugadores" style="font-size:${tamFilasAjustado}vh;">${emparejamiento}</td>
       </tr>`;
     });
     html += '</tbody></table>';

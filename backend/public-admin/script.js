@@ -1121,37 +1121,33 @@ document.getElementById('deleteAudioBtn').addEventListener('click', async () => 
 // ============================================
 
 /**
- * Convierte "Apellidos, Nombre" + "Nick" a "Nick Nombre Apellidos"
+ * Convierte "Apellidos, Nombre" + "Nick" a "Nick - Nombre Apellidos"
  * Ejemplos:
- *   convertirNombreFormato("Meijide, Pedro", "Erjam") 
- *     → "Erjam Pedro Meijide"
- *   
+ *   convertirNombreFormato("Meijide, Pedro", "Erjam")
+ *     → "Erjam - Pedro Meijide"
+ *
  *   convertirNombreFormato("Silvela Sánchez, Francisco Javier", "Silvela")
- *     → "Silvela Francisco Javier Silvela Sánchez"
+ *     → "Silvela - Francisco Javier Silvela Sánchez"
  */
 function convertirNombreFormato(nombreApellidos, nick) {
   if (!nick) {
-    // Si no hay nick, solo invertir el orden: "Nombre Apellidos"
     const partes = nombreApellidos.split(',').map(p => p.trim());
     if (partes.length === 2) {
-      return `${partes[1]} ${partes[0]}`;  // "Nombre Apellidos"
+      return `${partes[1]} ${partes[0]}`;
     }
     return nombreApellidos;
   }
-  
-  // Separar apellidos y nombre
+
   const partes = nombreApellidos.split(',').map(p => p.trim());
-  
+
   if (partes.length !== 2) {
-    // Formato inesperado, devolver con nick al inicio
-    return `${nick} ${nombreApellidos}`;
+    return `${nick} - ${nombreApellidos}`;
   }
-  
-  const apellidos = partes[0];  // "Meijide" o "Silvela Sánchez"
-  const nombre = partes[1];     // "Pedro" o "Francisco Javier"
-  
-  // NUEVO FORMATO: Nick Nombre Apellidos
-  return `${nick} ${nombre} ${apellidos}`;
+
+  const apellidos = partes[0];
+  const nombre = partes[1];
+
+  return `${nick} - ${nombre} ${apellidos}`;
 }
 
 function parsearTextoTorneo(texto) {
@@ -1165,13 +1161,24 @@ function parsearTextoTorneo(texto) {
   
   console.log(`📝 Analizando ${lineas.length} líneas...`);
   
-  // Detectar ronda (buscar "Round X (In Progress)" o "Round X in progress")
+  // Detectar ronda: priorizar "Round X (In Progress)" o "Round X in progress"
   for (const linea of lineas) {
-    const matchRonda = linea.match(/^Round\s+(\d+)\s*(?:\(In Progress\)|in progress)?$/i);
-    if (matchRonda) {
-      ronda = `Round ${matchRonda[1]}`;
-      console.log(`🎯 Ronda detectada: ${ronda}`);
+    const matchActiva = linea.match(/^Round\s+(\d+)\s*(?:\(In Progress\)|in progress)$/i);
+    if (matchActiva) {
+      ronda = `Round ${matchActiva[1]}`;
+      console.log(`🎯 Ronda activa detectada: ${ronda}`);
       break;
+    }
+  }
+  // Si no hay ronda activa, buscar "Round X in progress" como texto suelto
+  if (!ronda) {
+    for (const linea of lineas) {
+      const matchRonda = linea.match(/Round\s+(\d+)\s+in\s+progress/i);
+      if (matchRonda) {
+        ronda = `Round ${matchRonda[1]}`;
+        console.log(`🎯 Ronda detectada por texto: ${ronda}`);
+        break;
+      }
     }
   }
   
@@ -1368,6 +1375,16 @@ document.getElementById('parseMesasBtn').addEventListener('click', async () => {
     const data = await res.json();
     
     if (data.ok) {
+      // Escribir la ronda en el campo de texto para que sea editable
+      if (ronda) {
+        const textoRonda = `🎯 ${ronda}`;
+        document.getElementById('textoInput').value = textoRonda;
+        await fetch(`${API}/texto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texto: textoRonda })
+        });
+      }
       alert(`${emparejamientos.length} mesas cargadas correctamente`);
       mostrarPreviewMesas(data.mesas);
     }
